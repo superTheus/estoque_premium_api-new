@@ -1,0 +1,22 @@
+RewriteEngine On
+
+# Passa o cabeçalho Authorization para o PHP
+RewriteCond %{HTTP:Authorization} ^(.+)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+
+# Tratamento de OPTIONS para CORS, mas sem interromper outras regras para rotas não-OPTIONS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ - [R=200,L]
+
+# Regra principal para o roteamento - DEVE ser a última regra
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . index.php [L]
+
+# Configurações CORS (opcional, já que você tem isso no index.php)
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Header always set Access-Control-Max-Age "1728000"
+</IfModule>

@@ -1,0 +1,22 @@
+{
+    "name": "root/estoquepremium-api",
+    "description": "API para o sistema estoque premium",
+    "autoload": {
+        "psr-4": {
+            "App\\": "App/"
+        }
+    },
+    "require": {
+        "bramus/router": "^1.6",
+        "vlucas/phpdotenv": "^5.6",
+        "firebase/php-jwt": "^6.11",
+        "phpmailer/phpmailer": "^6.10",
+        "mpdf/mpdf": "^8.2"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "MuiraSoft"
+        }
+    ]
+}
