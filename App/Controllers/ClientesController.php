@@ -2,17 +2,17 @@
 
 namespace App\Controllers;
 
-use App\Models\MarcasModel;
+use App\Models\ClientesModel;
 use Dotenv\Dotenv;
 
-class MarcasController extends ControllerBase
+class ClientesController extends ControllerBase
 {
     public function __construct($id = null)
     {
         $dotenv = Dotenv::createImmutable(dirname(__DIR__, 2));
         $dotenv->load();
 
-        $this->model = new MarcasModel($id ? $id : null);
+        $this->model = new ClientesModel($id ? $id : null);
     }
 
     public function findOnly($data = [])
@@ -78,6 +78,7 @@ class MarcasController extends ControllerBase
             $currentData = $this->model->current();
 
             if ($currentData) {
+
                 $result = $this->model->update($data);
 
                 foreach ($this->model->relationConfig as $relation) {

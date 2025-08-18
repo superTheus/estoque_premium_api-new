@@ -77,32 +77,63 @@ class FornecedoresController extends ControllerBase
         try {
             $currentData = $this->model->current();
 
-            if (isset($data['foto']) && $data['foto']) {
-                if (is_string($data['foto']) && (
-                    strpos($data['foto'], 'base64,') !== false ||
-                    preg_match('/^[a-zA-Z0-9+\/=]+$/', trim($data['foto']))
-                )) {
-                    $uploadsController = new UploadsController();
-                    if (!empty($currentData['foto'])) {
-                        try {
-                            $uploadsController->deleteFile($currentData['foto']);
-                        } catch (\Exception $e) {
-                            error_log('Não foi possível excluir a foto anterior: ' . $e->getMessage());
+            if ($currentData) {
+                $result = $this->model->update($data);
+
+                foreach ($this->model->relationConfig as $relation) {
+                    if (isset($data[$relation['property']])) {
+                        $delete = $data[$relation['property']]['delete'] ?? [];
+                        $create = $data[$relation['property']]['create'] ?? [];
+                        $update = $data[$relation['property']]['update'] ?? [];
+
+                        foreach ($create as $item) {
+                            $model = new $relation['model']();
+                            $this->validateRequiredFields($model, $item, [$relation['foreign_key']]);
+                            $item[$relation['foreign_key']] = $currentData['id'];
+                            $model->insert($item);
+                        }
+
+                        foreach ($update as $item) {
+                            $model = new $relation['model']($item['id']);
+                            $currentDataItem = $model->current();
+                            if (!$currentDataItem) {
+                                throw new \Exception("Item com ID {$item['id']} não foi encontrado em relação {$relation['property']}");
+                            }
+                            if ($currentDataItem[$relation['foreign_key']] !== $currentData['id']) {
+                                throw new \Exception("Item com ID {$item['id']} não pertence ao cliente atual");
+                            }
+                            $this->validateUpdateFields($model, $item, $currentDataItem);
+                            $model->update($item);
+                        }
+
+                        foreach ($delete as $item) {
+                            $model = new $relation['model']();
+                            $model->__set($relation['foreign_key'], $currentData['id']);
+                            $model->__set($relation['key'], $item['id']);
+
+                            $currentDataItem = $model->find([
+                                $relation['foreign_key'] => $currentData['id'],
+                                $relation['key'] => $item['id']
+                            ])[0] ?? null;
+
+                            $model = new $relation['model']($currentDataItem['id']);
+
+                            if (!$currentDataItem) {
+                                throw new \Exception("Item com ID {$item['id']} não foi encontrado em relação {$relation['property']}");
+                            }
+
+                            if ($currentDataItem[$relation['foreign_key']] !== $currentData['id']) {
+                                throw new \Exception("Item com ID {$item['id']} não pertence ao cliente atual");
+                            }
+
+                            if ($this->model->verifyMinimum($relation)) {
+                                throw new \Exception("É necessário ter pelo menos {$relation['min_count']} itens em {$relation['property']}");
+                            } else {
+                                $model->delete();
+                            }
                         }
                     }
-
-                    $data['foto'] = $uploadsController->uploadFile($data['foto'], "user");
                 }
-            }
-
-            if ($currentData) {
-
-                if (isset($data['senha']) && $data['senha']) {
-                    $hash = password_hash($data['senha'], PASSWORD_BCRYPT);
-                    $data['senha'] = $hash;
-                }
-
-                $result = $this->model->update($data);
 
                 http_response_code(200);
                 echo json_encode($result);
