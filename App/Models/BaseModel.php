@@ -87,6 +87,18 @@ abstract class BaseModel extends Connection
             "model" => ProdutosModel::class,
             "controller" => Controllers\ProdutosController::class,
         ],
+        [
+            "property" => "cidade",
+            "table" => "cidade",
+            "model" => CidadesModel::class,
+            "controller" => Controllers\CidadesController::class,
+        ],
+        [
+            "property" => "estado",
+            "table" => "estado",
+            "model" => EstadosModel::class,
+            "controller" => Controllers\EstadosController::class,
+        ],
     ];
 
     public function __construct($id = null)
@@ -104,14 +116,166 @@ abstract class BaseModel extends Connection
         $this->closeConnection();
     }
 
-    abstract public function totalCount($filters = [], $dateRange = []);
+    abstract public function totalCount($filters = []);
     abstract public function findById($id);
-    abstract public function find($filters = [], $limit = null, $offset = null, $order = [], $dateRange = []);
+    abstract public function find($filters = [], $limit = null, $offset = null, $order = []);
     abstract public function current();
     abstract public function insert($data);
     abstract public function update($data);
     abstract public function delete();
     abstract public function getTableName();
+
+    protected function buildFilterConditions($filters, &$conditions, &$bindings, $parentKey = '', $level = 0)
+    {
+        foreach ($filters as $key => $value) {
+            if ($key === 'AND' || $key === 'OR') {
+                $this->handleLogicalOperator($key, $value, $conditions, $bindings, $parentKey, $level);
+            } else {
+                $this->handleFieldFilter($key, $value, $conditions, $bindings);
+            }
+        }
+    }
+
+    protected function handleLogicalOperator($operator, $value, &$conditions, &$bindings, $parentKey, $level)
+    {
+        $subConditions = [];
+
+        if (is_array($value)) {
+            foreach ($value as $subKey => $subValue) {
+                if ($subKey == "AND" || $subKey == "OR") {
+                    $this->handleLogicalOperator($subKey, $subValue, $subConditions, $bindings, $parentKey, $level + 1);
+                } else {
+                    $this->handleFieldFilter($subKey, $subValue, $subConditions, $bindings);
+                }
+            }
+        } else {
+            $this->handleFieldFilter($value, $value, $subConditions, $bindings);
+        }
+
+        if (!empty($subConditions)) {
+            $conditions[] = '(' . implode(' ' . $operator . ' ', $subConditions) . ')';
+        }
+    }
+
+    protected function handleFieldFilter($field, $value, &$conditions, &$bindings)
+    {
+        if (!is_array($value)) {
+            $param = ':' . str_replace('.', '_', $field) . '_' . count($bindings);
+            $conditions[] = "$field = $param";
+            $bindings[$param] = $value;
+            return;
+        }
+
+        if (isset($value['OPERATOR'])) {
+            $this->handleOperatorFilter($field, $value, $conditions, $bindings);
+        } elseif (isset($value['LIKE'])) {
+            $this->handleLikeFilter($field, $value['LIKE'], $conditions, $bindings);
+        } elseif (isset($value['IN'])) {
+            $this->handleInFilter($field, $value['IN'], $conditions, $bindings);
+        } elseif (isset($value['NOT IN'])) {
+            $this->handleInFilter($field, $value['NOT IN'], $conditions, $bindings, true);
+        } elseif (isset($value['BETWEEN'])) {
+            $this->handleBetweenFilter($field, $value['BETWEEN'], $conditions, $bindings);
+        } elseif (isset($value['IS NULL'])) {
+            $conditions[] = "$field IS NULL";
+        } elseif (isset($value['IS NOT NULL'])) {
+            $conditions[] = "$field IS NOT NULL";
+        } elseif (isset($value['OR'])) {
+            $this->handleOrFilter($field, $value, $conditions, $bindings);
+        } elseif (isset($value['AND'])) {
+            $this->handleAndFilter($field, $value, $conditions, $bindings);
+        }
+    }
+
+    protected function handleOperatorFilter($field, $value, &$conditions, &$bindings)
+    {
+        $operator = $value['OPERATOR'];
+        $val = $value['VALUE'];
+
+        $param = ':' . str_replace('.', '_', $field) . '_' . count($bindings);
+        $bindings[$param] = $val;
+        $conditions[] = "$field $operator $param";
+    }
+
+    protected function handleLikeFilter($field, $value, &$conditions, &$bindings)
+    {
+        if (empty($value)) return;
+
+        $param = ':' . str_replace('.', '_', $field) . '_' . count($bindings);
+        if (ctype_digit($value)) {
+            $conditions[] = "CAST($field AS CHAR) LIKE $param";
+            $bindings[$param] = '%' . $value . '%';
+        } else {
+            $conditions[] = "$field LIKE $param";
+            $bindings[$param] = '%' . $value . '%';
+        }
+    }
+
+    protected function handleInFilter($field, $values, &$conditions, &$bindings, $notIn = false)
+    {
+        if (empty($values)) return;
+
+        $params = [];
+        foreach ($values as $val) {
+            $param = ':' . str_replace('.', '_', $field) . '_in_' . count($bindings);
+            $params[] = $param;
+            $bindings[$param] = $val;
+        }
+
+        $operator = $notIn ? 'NOT IN' : 'IN';
+        $conditions[] = "$field $operator (" . implode(', ', $params) . ")";
+    }
+
+    protected function handleBetweenFilter($field, $values, &$conditions, &$bindings)
+    {
+        if (count($values) != 2) return;
+
+        $param1 = ':' . str_replace('.', '_', $field) . '_between_1';
+        $param2 = ':' . str_replace('.', '_', $field) . '_between_2';
+
+        $bindings[$param1] = $values[0];
+        $bindings[$param2] = $values[1];
+
+        $conditions[] = "$field BETWEEN $param1 AND $param2";
+    }
+
+    protected function handleOrFilter($field, $value, &$conditions, &$bindings)
+    {
+        $orValues = $value['OR'] ?? [];
+
+        if (empty($orValues)) return;
+
+        $orConditions = [];
+        foreach ($orValues as $val) {
+            $param = ':' . str_replace('.', '_', $field) . '_or_' . count($bindings);
+            $orConditions[] = "$field = $param";
+            $bindings[$param] = $val;
+        }
+
+        if (!empty($orConditions)) {
+            $prefix = !empty($conditions) ? 'AND ' : '';
+            $conditions[] = $prefix . '(' . implode(' OR ', $orConditions) . ')';
+        }
+    }
+
+    protected function handleAndFilter($field, $value, &$conditions, &$bindings)
+    {
+        $andValues = $value['AND'] ?? [];
+
+        if (empty($andValues)) return;
+
+        $andConditions = [];
+        foreach ($andValues as $val) {
+            $param = ':' . str_replace('.', '_', $field) . '_and_' . count($bindings);
+            $andConditions[] = "$field = $param";
+            $bindings[$param] = $val;
+        }
+
+        if (!empty($andConditions)) {
+            $prefix = !empty($conditions) ? 'AND ' : '';
+            $conditions[] = $prefix . '(' . implode(' AND ', $andConditions) . ')';
+        }
+    }
 
     protected function getStructureTable(PDO $pdo)
     {
@@ -225,7 +389,7 @@ abstract class BaseModel extends Connection
                     ];
 
                     if (strpos($column['name'], '.') !== false) {
-                        $table = explode('.', $column['name'])[0];
+                        $table = "axpem_" . explode('.', $column['name'])[0];
                         $property = explode('.', $column['name'])[1];
 
                         $data["name"] = "{$table}.{$property} AS {$column['data']}";
@@ -235,10 +399,14 @@ abstract class BaseModel extends Connection
                         }))[0];
 
                         if ($foreign_key) {
-                            $joins[] = [
-                                'table' => $table,
-                                'on' => "{$this->table}.{$foreign_key['foreign_key']} = {$table}.{$foreign_key['column']}"
-                            ];
+                            if (in_array($table, array_column($joins, 'table'))) {
+                                $joins[array_search($table, array_column($joins, 'table'))]['on'] .= " AND {$this->table}.{$foreign_key['foreign_key']} = {$table}.{$foreign_key['column']}";
+                            } else {
+                                $joins[] = [
+                                    'table' => $table,
+                                    'on' => "{$this->table}.{$foreign_key['foreign_key']} = {$table}.{$foreign_key['column']}"
+                                ];
+                            }
                         }
                     } else {
                         $data["name"] = "{$this->table}.{$column['name']} AS {$column['data']}";
@@ -270,22 +438,28 @@ abstract class BaseModel extends Connection
 
             // Processar busca por coluna (se houver)
             if (isset($params['columns']) && is_array($params['columns'])) {
-                foreach ($searchableColumns as $columnName) {
+                foreach ($searchableColumns as $columnIndex => $columnName) {
                     $column = array_values(array_filter($fields, function ($field) use ($columnName) {
                         if (isset($field['name']) && !empty($field['name'])) {
                             return strpos($field['name'], $columnName) !== false;
                         }
                         return false;
-                    }))[0];
+                    }))[0] ?? null;
 
-                    if (!empty($column['search']['value'])) {
-                        $searchValue = $column['search']['value'];
+                    if ($column && !empty($params['columns'][$columnIndex]['search']['value'])) {
+                        $searchValue = $params['columns'][$columnIndex]['search']['value'];
 
                         if (isset($searchValue['operator']) && isset($searchValue['value'])) {
                             $operator = strtoupper($searchValue['operator']);
                             $value = $searchValue['value'];
-                            $joinQuery->where($columnName, $value, $operator);
-                            $countQuery->where($columnName, $value, $operator);
+
+                            if ($operator === 'BETWEEN' && is_array($value) && count($value) === 2) {
+                                $joinQuery->whereBetween($columnName, $value[0], $value[1]);
+                                $countQuery->whereBetween($columnName, $value[0], $value[1]);
+                            } else {
+                                $joinQuery->where($columnName, $value, $operator);
+                                $countQuery->where($columnName, $value, $operator);
+                            }
                         } else if ($columnName) {
                             $joinQuery->where($columnName, $searchValue);
                             $countQuery->where($columnName, $searchValue);

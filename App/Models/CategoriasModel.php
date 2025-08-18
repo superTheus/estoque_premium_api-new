@@ -72,41 +72,14 @@ class CategoriasModel extends BaseModel
         }
     }
 
-    public function totalCount($filters = [], $dateRange = [])
+    public function totalCount($filters = [])
     {
         $sql = "SELECT COUNT(id) as total FROM {$this->table}";
         $conditions = [];
 
+        $bindings = [];
         if (!empty($filters)) {
-            foreach ($filters as $column => $value) {
-                if (is_array($value)) {
-                    if (isset($value['OR'])) {
-                        $orConditions = [];
-                        foreach ($value['OR'] as $orValue) {
-                            $orConditions[] = "$column = :{$column}_or_$orValue";
-                        }
-                        $conditions[] = '(' . implode(' OR ', $orConditions) . ')';
-                    }
-                    if (isset($value['AND'])) {
-                        $andConditions = [];
-                        foreach ($value['AND'] as $andValue) {
-                            $andConditions[] = "$column = :{$column}_and_$andValue";
-                        }
-                        $conditions[] = '(' . implode(' AND ', $andConditions) . ')';
-                    }
-                } else {
-                    $conditions[] = "$column = :$column";
-                }
-            }
-        }
-
-        if (!empty($dateRange)) {
-            if (isset($dateRange['start_date'])) {
-                $conditions[] = "DATE(dthr_registro) >= DATE(:start_date)";
-            }
-            if (isset($dateRange['end_date'])) {
-                $conditions[] = "DATE(dthr_registro) <= DATE(:end_date)";
-            }
+            $this->buildFilterConditions($filters, $conditions, $bindings);
         }
 
         if (!empty($conditions)) {
@@ -116,36 +89,10 @@ class CategoriasModel extends BaseModel
         try {
             $stmt = $this->conn->prepare($sql);
 
-            if (!empty($filters)) {
-                foreach ($filters as $column => $value) {
-                    if (is_array($value)) {
-                        if (isset($value['OR'])) {
-                            foreach ($value['OR'] as $orValue) {
-                                $stmt->bindValue(":{$column}_or_$orValue", $orValue);
-                            }
-                        }
-                        if (isset($value['AND'])) {
-                            foreach ($value['AND'] as $andValue) {
-                                $stmt->bindValue(":{$column}_and_$andValue", $andValue);
-                            }
-                        }
-                    } else {
-                        if ("$column" === "senha") {
-                            $value = md5($value);
-                        }
+            foreach ($bindings as $param => $value) {
 
-                        $stmt->bindValue(":$column", $value);
-                    }
-                }
-            }
-
-            if (!empty($dateRange)) {
-                if (isset($dateRange['start_date'])) {
-                    $stmt->bindValue(':start_date', $dateRange['start_date']);
-                }
-                if (isset($dateRange['end_date'])) {
-                    $stmt->bindValue(':end_date', $dateRange['end_date']);
-                }
+                $type = is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR;
+                $stmt->bindValue($param, $value, $type);
             }
 
             $stmt->execute();
@@ -156,43 +103,16 @@ class CategoriasModel extends BaseModel
         }
     }
 
-    public function find($filters = [], $limit = null, $offset = null, $order = [], $dateRange = [])
+    public function find($filters = [], $limit = null, $offset = null, $order = [])
     {
         try {
-            $sql = "SELECT * FROM {$this->table}";
 
+            $sql = "SELECT * FROM {$this->table}";
             $conditions = [];
+            $bindings = [];
 
             if (!empty($filters)) {
-                foreach ($filters as $column => $value) {
-                    if (is_array($value)) {
-                        if (isset($value['OR'])) {
-                            $orConditions = [];
-                            foreach ($value['OR'] as $orValue) {
-                                $orConditions[] = "$column = :{$column}_or_$orValue";
-                            }
-                            $conditions[] = '(' . implode(' OR ', $orConditions) . ')';
-                        }
-                        if (isset($value['AND'])) {
-                            $andConditions = [];
-                            foreach ($value['AND'] as $andValue) {
-                                $andConditions[] = "$column = :{$column}_and_$andValue";
-                            }
-                            $conditions[] = '(' . implode(' AND ', $andConditions) . ')';
-                        }
-                    } else {
-                        $conditions[] = "$column = :$column";
-                    }
-                }
-            }
-
-            if (!empty($dateRange)) {
-                if (isset($dateRange['start_date'])) {
-                    $conditions[] = "DATE(dthr_registro) >= DATE(:start_date)";
-                }
-                if (isset($dateRange['end_date'])) {
-                    $conditions[] = "DATE(dthr_registro) <= DATE(:end_date)";
-                }
+                $this->buildFilterConditions($filters, $conditions, $bindings);
             }
 
             if (!empty($conditions)) {
@@ -201,68 +121,38 @@ class CategoriasModel extends BaseModel
 
             if (!empty($order)) {
                 $orderClauses = [];
-                $direction = strtoupper($order['direction']) === 'DESC' ? 'DESC' : 'ASC';
-                foreach ($order['cols'] as $column) {
+                $direction = strtoupper($order['direction'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+
+                foreach ($order['cols'] ?? [] as $column) {
                     $orderClauses[] = "$column $direction";
                 }
-                $sql .= " ORDER BY " . implode(", ", $orderClauses);
+
+                if (!empty($orderClauses)) {
+                    $sql .= " ORDER BY " . implode(", ", $orderClauses);
+                }
             }
 
             if ($limit !== null) {
                 $sql .= " LIMIT :limit";
+                $bindings[':limit'] = (int) $limit;
             }
 
             if ($offset !== null) {
                 $sql .= " OFFSET :offset";
+                $bindings[':offset'] = (int) $offset;
             }
 
             $stmt = $this->conn->prepare($sql);
 
-            if (!empty($filters)) {
-                foreach ($filters as $column => $value) {
-                    if (is_array($value)) {
-                        if (isset($value['OR'])) {
-                            foreach ($value['OR'] as $orValue) {
-                                $stmt->bindValue(":{$column}_or_$orValue", $orValue);
-                            }
-                        }
-                        if (isset($value['AND'])) {
-                            foreach ($value['AND'] as $andValue) {
-                                $stmt->bindValue(":{$column}_and_$andValue", $andValue);
-                            }
-                        }
-                    } else {
-                        if ("$column" === "senha") {
-                            $value = md5($value);
-                        }
-
-                        $stmt->bindValue(":$column", $value);
-                    }
-                }
-            }
-
-            if (!empty($dateRange)) {
-                if (isset($dateRange['start_date'])) {
-                    $stmt->bindValue(':start_date', $dateRange['start_date']);
-                }
-                if (isset($dateRange['end_date'])) {
-                    $stmt->bindValue(':end_date', $dateRange['end_date']);
-                }
-            }
-
-            if ($limit !== null) {
-                $stmt->bindValue(':limit', (int) $limit, \PDO::PARAM_INT);
-            }
-
-            if ($offset !== null) {
-                $stmt->bindValue(':offset', (int) $offset, \PDO::PARAM_INT);
+            foreach ($bindings as $param => $value) {
+                $type = is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR;
+                $stmt->bindValue($param, $value, $type);
             }
 
             $stmt->execute();
-
-            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        } catch (\PDOException $e) {
-            throw new \PDOException($e->getMessage());
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            throw new PDOException($e->getMessage());
         }
     }
 

@@ -8,10 +8,10 @@ use App\Models\BaseModel;
 use PDO;
 use PDOException;
 
-class ClientesModel extends BaseModel
+class CidadesModel extends BaseModel
 {
     private $attributes = [];
-    protected $table = 'clientes';
+    protected $table = 'cidade';
 
     public function __construct($id = null)
     {
@@ -159,6 +159,17 @@ class ClientesModel extends BaseModel
     public function insert($data)
     {
         try {
+
+            if (isset($data['foto']) && $data['foto']) {
+                $uploadsController = new UploadsController();
+                $data['foto'] = $uploadsController->uploadFile($data['foto'], "user");
+            }
+
+            if (isset($data['senha']) && $data['senha']) {
+                $hash = password_hash($data['senha'], PASSWORD_BCRYPT);
+                $data['senha'] = $hash;
+            }
+
             $colunas = [];
             $valores = [];
             $placeholders = [];

@@ -3,6 +3,7 @@
 namespace App\Routers;
 
 use App\Controllers\CategoriasController;
+use App\Controllers\ClientesController;
 use App\Controllers\ContasUsuariosController;
 use App\Controllers\FornecedoresController;
 use App\Controllers\MarcasController;
@@ -169,6 +170,26 @@ class Routers
                     $subcategoriasController = new SubcategoriasController();
                     $data = json_decode(file_get_contents('php://input'), true);
                     $subcategoriasController->searchDataTable($data);
+                });
+            });
+
+            $router->mount('/clientes', function () use ($router) {
+                $router->post('/criar', function () {
+                    $clientesController = new ClientesController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $clientesController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $clientesController = new ClientesController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $clientesController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $clientesController = new ClientesController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $clientesController->update($data);
                 });
             });
         });

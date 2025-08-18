@@ -49,13 +49,14 @@ class QueryBuilder
         return $this->join($table, $condition, 'RIGHT');
     }
 
-    public function where($field, $value, $operator = '=', $logicalOperator = 'AND')
+    public function where($field, $value, $operator = '=', $logicalOperator = 'AND', $rawValue = false)
     {
         $this->where[] = [
             'field' => $field,
             'value' => $value,
             'operator' => $operator,
-            'logicalOperator' => $logicalOperator
+            'logicalOperator' => $logicalOperator,
+            'rawValue' => $rawValue
         ];
         return $this;
     }
@@ -81,6 +82,17 @@ class QueryBuilder
             'field' => $field,
             'value' => $values,
             'operator' => 'IN',
+            'logicalOperator' => $logicalOperator
+        ];
+        return $this;
+    }
+
+    public function whereBetween($field, $min, $max, $logicalOperator = 'AND')
+    {
+        $this->where[] = [
+            'field' => $field,
+            'value' => [$min, $max],
+            'operator' => 'BETWEEN',
             'logicalOperator' => $logicalOperator
         ];
         return $this;
@@ -218,10 +230,20 @@ class QueryBuilder
                         $this->params[$paramName] = $val;
                     }
                     $sql .= " {$condition['field']} IN (" . implode(", ", $placeholders) . ")";
+                } else if ($condition['operator'] === 'BETWEEN' && is_array($condition['value'])) {
+                    $paramName1 = "between_{$index}_min";
+                    $paramName2 = "between_{$index}_max";
+                    $sql .= " {$condition['field']} BETWEEN :{$paramName1} AND :{$paramName2}";
+                    $this->params[$paramName1] = $condition['value'][0];
+                    $this->params[$paramName2] = $condition['value'][1];
                 } else {
-                    $paramName = "param_{$index}";
-                    $sql .= " {$condition['field']} {$condition['operator']} :{$paramName}";
-                    $this->params[$paramName] = ($condition['operator'] === 'LIKE') ? "%{$condition['value']}%" : $condition['value'];
+                    if (isset($condition['rawValue']) && $condition['rawValue']) {
+                        $sql .= " {$condition['field']} {$condition['operator']} {$condition['value']}";
+                    } else {
+                        $paramName = "param_{$index}";
+                        $sql .= " {$condition['field']} {$condition['operator']} :{$paramName}";
+                        $this->params[$paramName] = ($condition['operator'] === 'LIKE') ? "%{$condition['value']}%" : $condition['value'];
+                    }
                 }
 
                 $isFirst = false;
