@@ -269,17 +269,6 @@ class FornecedoresModel extends BaseModel
     public function insert($data)
     {
         try {
-
-            if (isset($data['foto']) && $data['foto']) {
-                $uploadsController = new UploadsController();
-                $data['foto'] = $uploadsController->uploadFile($data['foto'], "user");
-            }
-
-            if (isset($data['senha']) && $data['senha']) {
-                $hash = password_hash($data['senha'], PASSWORD_BCRYPT);
-                $data['senha'] = $hash;
-            }
-
             $colunas = [];
             $valores = [];
             $placeholders = [];

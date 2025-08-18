@@ -8,10 +8,10 @@ use App\Models\BaseModel;
 use PDO;
 use PDOException;
 
-class MarcasModel extends BaseModel
+class ProdutosEstoqueModel extends BaseModel
 {
     private $attributes = [];
-    protected $table = 'marcas';
+    protected $table = 'produtos_estoque';
 
     public function __construct($id = null)
     {
@@ -269,6 +269,17 @@ class MarcasModel extends BaseModel
     public function insert($data)
     {
         try {
+
+            if (isset($data['foto']) && $data['foto']) {
+                $uploadsController = new UploadsController();
+                $data['foto'] = $uploadsController->uploadFile($data['foto'], "user");
+            }
+
+            if (isset($data['senha']) && $data['senha']) {
+                $hash = password_hash($data['senha'], PASSWORD_BCRYPT);
+                $data['senha'] = $hash;
+            }
+
             $colunas = [];
             $valores = [];
             $placeholders = [];

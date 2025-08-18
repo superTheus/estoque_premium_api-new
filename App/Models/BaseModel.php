@@ -56,7 +56,37 @@ abstract class BaseModel extends Connection
             "table" => "subcategorias",
             "model" => SubcategoriasModel::class,
             "controller" => Controllers\SubcategoriasController::class,
-        ]
+        ],
+        [
+            "property" => "cliente",
+            "table" => "cliente",
+            "model" => ClientesModel::class,
+            "controller" => Controllers\ClientesController::class,
+        ],
+        [
+            "property" => "produtos_estoque",
+            "table" => "produtos_estoque",
+            "model" => ProdutosEstoqueModel::class,
+            "controller" => Controllers\ProdutosEstoqueController::class,
+        ],
+        [
+            "property" => "produtos_imagens",
+            "table" => "produtos_imagens",
+            "model" => ProdutosImagensModel::class,
+            "controller" => Controllers\ProdutosImagensController::class,
+        ],
+        [
+            "property" => "produtos_kit",
+            "table" => "produtos_kit",
+            "model" => ProdutosKitsModel::class,
+            "controller" => Controllers\ProdutosKitsController::class,
+        ],
+        [
+            "property" => "produtos",
+            "table" => "produtos",
+            "model" => ProdutosModel::class,
+            "controller" => Controllers\ProdutosController::class,
+        ],
     ];
 
     public function __construct($id = null)
