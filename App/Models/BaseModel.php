@@ -99,6 +99,18 @@ abstract class BaseModel extends Connection
             "model" => EstadosModel::class,
             "controller" => Controllers\EstadosController::class,
         ],
+        [
+            "property" => "menus",
+            "table" => "menus",
+            "model" => MenusModel::class,
+            "controller" => Controllers\MenusController::class,
+        ],
+        [
+            "property" => "submenus",
+            "table" => "submenus",
+            "model" => SubMenusModel::class,
+            "controller" => Controllers\SubMenusController::class,
+        ],
     ];
 
     public function __construct($id = null)
