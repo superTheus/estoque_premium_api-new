@@ -5,6 +5,7 @@ namespace App\Routers;
 use App\Controllers\CategoriasController;
 use App\Controllers\ClientesController;
 use App\Controllers\ContasUsuariosController;
+use App\Controllers\EmpresasController;
 use App\Controllers\FornecedoresController;
 use App\Controllers\MarcasController;
 use App\Controllers\ProdutosController;
@@ -67,6 +68,26 @@ class Routers
                     $usuariosController = new UsuariosController();
                     $data = json_decode(file_get_contents('php://input'), true);
                     $usuariosController->searchDataTable($data);
+                });
+            });
+
+            $router->mount('/empresas', function () use ($router) {
+                $router->post('/criar', function () {
+                    $empresasController = new EmpresasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $empresasController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $empresasController = new EmpresasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $empresasController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $empresasController = new EmpresasController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $empresasController->update($data);
                 });
             });
 
