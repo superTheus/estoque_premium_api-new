@@ -199,7 +199,6 @@ class UsuariosController extends ControllerBase
 
             if ($user && $user[0] && password_verify($data['senha'], $user[0]['senha'])) {
                 $user = $user[0];
-
                 $token = [
                     "erro" => false,
                     "iat" => time(),
@@ -209,7 +208,7 @@ class UsuariosController extends ControllerBase
                         "id_conta" => $user['id_conta'],
                         "perfil" => $user['perfil'],
                         "tipo" => $user['tipo'],
-                        "conta_tipo" => $user['contas_usuarios']['tipo'],
+                        "conta_tipo" => $user['contas_usuarios'][0]['tipo'],
                     ]
                 ];
 

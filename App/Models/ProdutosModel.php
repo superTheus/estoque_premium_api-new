@@ -36,8 +36,8 @@ class ProdutosModel extends BaseModel
                 'model' => 'produtos_kit',
                 'model' => ProdutosKitsModel::class,
                 'min_count' => 0,
-                'foreign_key' => 'id_produto_kit',
-                'key' => 'id_produto',
+                'foreign_key' => 'id_produto',
+                'key' => 'id_produto_kit',
             ],
         ];
         parent::__construct($id);
