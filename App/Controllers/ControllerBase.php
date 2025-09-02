@@ -25,14 +25,19 @@ abstract class ControllerBase
                         if ($relation['property'] === $includeKey) {
                             if (isset($relation['ignore']) && $relation['ignore']) {
                                 $controller = new $relation['controller']();
-                                $results[$resultKey][$relation['property']] = $controller->findOnly([
+                                $r = $controller->findOnly([
                                     "filter" => array_merge([$relation['column'] => $result[$relation['foreign_key']]], $includeValue['filter'] ?? []),
                                     "limit" => $includeValue['limit'] ?? null,
                                     "offset" => $includeValue['offset'] ?? null,
                                     "order" => $includeValue['order'] ?? [],
                                     "date_ranger" => $includeValue['date_ranger'] ?? [],
                                     "includes" => isset($includeValue['includes']) ? $includeValue['includes'] : []
-                                ])[0];
+                                ]);
+                                if($r && $r[0]) {
+                                    $results[$resultKey][$relation['property']] = $r;
+                                } else {
+                                    $results[$resultKey][$relation['property']] = [];
+                                }
                                 continue;
                             }
 

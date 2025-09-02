@@ -11,7 +11,6 @@ class EmailsController
   private $subject;
   private $message;
   private $title;
-  private $image;
 
   public function __construct($email, $subject, $title = 'Axpem')
   {
@@ -21,7 +20,6 @@ class EmailsController
     $this->email = $email;
     $this->subject = $subject;
     $this->title = $title;
-    $this->setImage($_ENV['URL_IMAGE'] . "/assets/images/Logo-Axpem-1024x734.png");
   }
 
   public function send()
@@ -138,26 +136,6 @@ class EmailsController
   public function setTitle($title)
   {
     $this->title = $title;
-
-    return $this;
-  }
-
-  /**
-   * Get the value of image
-   */
-  public function getImage()
-  {
-    return $this->image;
-  }
-
-  /**
-   * Set the value of image
-   *
-   * @return  self
-   */
-  public function setImage($image)
-  {
-    $this->image = $image;
 
     return $this;
   }

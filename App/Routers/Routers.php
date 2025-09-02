@@ -7,6 +7,7 @@ use App\Controllers\ClientesController;
 use App\Controllers\ContasUsuariosController;
 use App\Controllers\FornecedoresController;
 use App\Controllers\MarcasController;
+use App\Controllers\ProdutosController;
 use App\Controllers\SubcategoriasController;
 use App\Controllers\UsuariosController;
 use App\Middlewares\AuthMiddleware;
@@ -192,6 +193,26 @@ class Routers
                     $clientesController->update($data);
                 });
             });
+
+            $router->mount('/produtos', function () use ($router) {
+                $router->post('/criar', function () {
+                    $produtosController = new ProdutosController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $produtosController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $produtosController = new ProdutosController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $produtosController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $produtosController = new ProdutosController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $produtosController->update($data);
+                });
+            });
         });
 
         $router->mount('/root', function () use ($router) {
@@ -221,7 +242,6 @@ class Routers
                 });
             });
         });
-
 
         $router->post('/login', function () {
             $usuarioController = new UsuariosController();

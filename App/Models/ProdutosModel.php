@@ -21,7 +21,8 @@ class ProdutosModel extends BaseModel
                 'table' => 'produtos_estoque',
                 'model' => ProdutosEstoqueModel::class,
                 'min_count' => 0,
-                'foreign_key' => 'id_produto'
+                'foreign_key' => 'id_produto',
+                'key' => 'id_empresa'
             ],
             [
                 'property' => 'produtos_imagens',
