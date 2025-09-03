@@ -111,6 +111,24 @@ abstract class BaseModel extends Connection
             "model" => SubMenusModel::class,
             "controller" => Controllers\SubMenusController::class,
         ],
+        [
+            "property" => "vendas",
+            "table" => "vendas",
+            "model" => VendasModel::class,
+            "controller" => Controllers\VendasController::class,
+        ],
+        [
+            "property" => "venda_produtos",
+            "table" => "venda_produtos",
+            "model" => VendaProdutosModel::class,
+            "controller" => Controllers\VendaProdutosController::class,
+        ],
+        [
+            "property" => "venda_pagamentos",
+            "table" => "venda_pagamentos",
+            "model" => VendaPagamentosModel::class,
+            "controller" => Controllers\VendaPagamentosController::class,
+        ],
     ];
 
     public function __construct($id = null)
