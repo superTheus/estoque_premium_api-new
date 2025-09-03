@@ -129,6 +129,12 @@ abstract class BaseModel extends Connection
             "model" => VendaPagamentosModel::class,
             "controller" => Controllers\VendaPagamentosController::class,
         ],
+        [
+            "property" => "operacoes",
+            "table" => "operacoes",
+            "model" => OperacoesModel::class,
+            "controller" => Controllers\OperacoesController::class,
+        ],
     ];
 
     public function __construct($id = null)
@@ -366,15 +372,15 @@ abstract class BaseModel extends Connection
 
             $find = array_values(array_filter($this->structureDatabase, function ($item) use ($row) {
                 return $item['table'] === $row['REFERENCED_TABLE_NAME'];
-            }))[0];
+            }))[0] ?? null;
 
             $foreignKeys[] = [
                 'foreign_key' => $row['COLUMN_NAME'],
                 'table' => $row['REFERENCED_TABLE_NAME'],
                 'column' => $row['REFERENCED_COLUMN_NAME'],
-                'model' => $find['model'],
-                'property' => $find['property'],
-                'controller' => $find['controller'],
+                'model' => $find['model'] ?? null,
+                'property' => $find['property'] ?? null,
+                'controller' => $find['controller'] ?? null,
                 'ignore' => true
             ];
         }

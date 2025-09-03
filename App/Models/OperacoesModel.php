@@ -8,31 +8,13 @@ use App\Models\BaseModel;
 use PDO;
 use PDOException;
 
-class VendasModel extends BaseModel
+class OperacoesModel extends BaseModel
 {
     private $attributes = [];
-    protected $table = 'vendas';
+    protected $table = 'operacoes';
 
     public function __construct($id = null)
     {
-        $this->relationConfig = [
-            [
-                'property' => 'venda_produtos',
-                'table' => 'venda_produtos',
-                'model' => VendaProdutosModel::class,
-                'min_count' => 1,
-                'foreign_key' => 'id_venda',
-                'key' => 'id_produto'
-            ],
-            [
-                'property' => 'venda_pagamentos',
-                'table' => 'venda_pagamentos',
-                'model' => VendaPagamentosModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_venda',
-                'key' => 'id_forma'
-            ]
-        ];
         parent::__construct($id);
     }
 

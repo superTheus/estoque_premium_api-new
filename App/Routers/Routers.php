@@ -8,9 +8,11 @@ use App\Controllers\ContasUsuariosController;
 use App\Controllers\EmpresasController;
 use App\Controllers\FornecedoresController;
 use App\Controllers\MarcasController;
+use App\Controllers\OperacoesController;
 use App\Controllers\ProdutosController;
 use App\Controllers\SubcategoriasController;
 use App\Controllers\UsuariosController;
+use App\Controllers\VendasController;
 use App\Middlewares\AuthMiddleware;
 use Bramus\Router\Router;
 
@@ -232,6 +234,46 @@ class Routers
                     $produtosController = new ProdutosController($id);
                     $data = json_decode(file_get_contents('php://input'), true);
                     $produtosController->update($data);
+                });
+            });
+
+            $router->mount('/operacoes', function () use ($router) {
+                $router->post('/criar', function () {
+                    $operacoesController = new OperacoesController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $operacoesController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $operacoesController = new OperacoesController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $operacoesController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $operacoesController = new OperacoesController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $operacoesController->update($data);
+                });
+            });
+
+            $router->mount('/vendas', function () use ($router) {
+                $router->post('/criar', function () {
+                    $vendasController = new VendasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendasController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $vendasController = new VendasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendasController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $vendasController = new VendasController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendasController->update($data);
                 });
             });
         });
