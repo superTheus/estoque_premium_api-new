@@ -2,51 +2,18 @@
 
 namespace App\Models;
 
-use App\Controllers\UploadsController;
 use App\Models\BaseModel;
 
 use PDO;
 use PDOException;
 
-class ProdutosModel extends BaseModel
+class RegrasFiscalModel extends BaseModel
 {
     private $attributes = [];
-    protected $table = 'produtos';
+    protected $table = 'regras_fiscal';
 
     public function __construct($id = null)
     {
-        $this->relationConfig = [
-            [
-                'property' => 'produtos_estoque',
-                'table' => 'produtos_estoque',
-                'model' => ProdutosEstoqueModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_produto',
-                'key' => 'id_empresa'
-            ],
-            [
-                'property' => 'produtos_imagens',
-                'model' => 'produtos_imagens',
-                'model' => ProdutosImagensModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_produto',
-            ],
-            [
-                'property' => 'produtos_kit',
-                'model' => 'produtos_kit',
-                'model' => ProdutosKitsModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_produto',
-                'key' => 'id_produto_kit',
-            ],
-            [
-                'property' => 'produto_movimentacao',
-                'model' => 'produto_movimentacao',
-                'model' => ProdutosMovimentacaoModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_produto'
-            ],
-        ];
         parent::__construct($id);
     }
 
@@ -191,16 +158,6 @@ class ProdutosModel extends BaseModel
     public function insert($data)
     {
         try {
-
-            if (isset($data['foto']) && $data['foto']) {
-                $uploadsController = new UploadsController();
-                $data['foto'] = $uploadsController->uploadFile($data['foto'], "user");
-            }
-
-            if (isset($data['senha']) && $data['senha']) {
-                $hash = password_hash($data['senha'], PASSWORD_BCRYPT);
-                $data['senha'] = $hash;
-            }
 
             $colunas = [];
             $valores = [];

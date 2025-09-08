@@ -135,6 +135,12 @@ abstract class BaseModel extends Connection
             "model" => OperacoesModel::class,
             "controller" => Controllers\OperacoesController::class,
         ],
+        [
+            "property" => "produto_movimentacao",
+            "table" => "produto_movimentacao",
+            "model" => ProdutosMovimentacaoModel::class,
+            "controller" => Controllers\ProdutosMovimentacaoController::class,
+        ],
     ];
 
     public function __construct($id = null)

@@ -2,17 +2,17 @@
 
 namespace App\Controllers;
 
-use App\Models\VendasModel;
+use App\Models\ProdutosMovimentacaoModel;
 use Dotenv\Dotenv;
 
-class VendasController extends ControllerBase
+class ProdutosMovimentacaoController extends ControllerBase
 {
     public function __construct($id = null)
     {
         $dotenv = Dotenv::createImmutable(dirname(__DIR__, 2));
         $dotenv->load();
 
-        $this->model = new VendasModel($id ? $id : null);
+        $this->model = new ProdutosMovimentacaoModel($id ? $id : null);
     }
 
     public function findOnly($data = [])
@@ -57,12 +57,22 @@ class VendasController extends ControllerBase
         return $this->model->current();
     }
 
-    public function create($data)
+    public function createOnly($data)
     {
         try {
             $data['id_conta'] = $_REQUEST['id_conta'];
             $this->validateRequiredFields($this->model, $data);
-            $result = $this->model->insert($data);
+
+            return $this->model->insert($data);
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
+    public function create($data)
+    {
+        try {
+            $result = $this->createOnly($data);
 
             http_response_code(200);
             echo json_encode($result);
@@ -86,6 +96,26 @@ class VendasController extends ControllerBase
                         $delete = $data[$relation['property']]['delete'] ?? [];
                         $create = $data[$relation['property']]['create'] ?? [];
                         $update = $data[$relation['property']]['update'] ?? [];
+
+                        foreach ($create as $item) {
+                            $model = new $relation['model']();
+                            $this->validateRequiredFields($model, $item, [$relation['foreign_key']]);
+                            $item[$relation['foreign_key']] = $currentData['id'];
+                            $model->insert($item);
+                        }
+
+                        foreach ($update as $item) {
+                            $model = new $relation['model']($item['id']);
+                            $currentDataItem = $model->current();
+                            if (!$currentDataItem) {
+                                throw new \Exception("Item com ID {$item['id']} não foi encontrado em relação {$relation['property']}");
+                            }
+                            if ($currentDataItem[$relation['foreign_key']] !== $currentData['id']) {
+                                throw new \Exception("Item com ID {$item['id']} não pertence ao cliente atual");
+                            }
+                            $this->validateUpdateFields($model, $item, $currentDataItem);
+                            $model->update($item);
+                        }
 
                         foreach ($delete as $item) {
                             $model = new $relation['model']();
@@ -111,80 +141,6 @@ class VendasController extends ControllerBase
                                 throw new \Exception("É necessário ter pelo menos {$relation['min_count']} itens em {$relation['property']}");
                             } else {
                                 $model->delete();
-                            }
-                        }
-
-                        foreach ($create as $item) {
-                            $model = new $relation['model']();
-                            $this->validateRequiredFields($model, $item, [$relation['foreign_key']]);
-                            $item[$relation['foreign_key']] = $currentData['id'];
-                            $model->insert($item);
-                        }
-
-                        foreach ($update as $item) {
-                            $model = new $relation['model']($item['id']);
-                            $currentDataItem = $model->current();
-                            if (!$currentDataItem) {
-                                throw new \Exception("Item com ID {$item['id']} não foi encontrado em relação {$relation['property']}");
-                            }
-                            if ($currentDataItem[$relation['foreign_key']] !== $currentData['id']) {
-                                throw new \Exception("Item com ID {$item['id']} não pertence ao cliente atual");
-                            }
-                            $this->validateUpdateFields($model, $item, $currentDataItem);
-                            $model->update($item);
-                        }
-                    }
-                }
-
-                if($currentData['status'] !== $data['status'] && $data['status'] === 'FE') {
-                    $operacoesController = new OperacoesController();
-                    $vendaProdutosController = new VendaProdutosController();
-                    $produtosController = new ProdutosController();
-                    $produtoEstoqueController = new ProdutosEstoqueController();
-                    $operacao = $operacoesController->findOnly([
-                        'filter' => ['id' => $currentData['id_operacao']]
-                    ])[0] ?? null;
-                        
-                    if($operacao && $operacao['mov_estoque'] === 'S') {
-                        $itens = $vendaProdutosController->findOnly([
-                            'filter' => ['id_venda' => $currentData['id']]
-                        ]);
-
-                        foreach($itens as $item) {
-                            $produto = $produtosController->findOnly([
-                                'filter' => ['id' => $item['id_produto']]
-                            ])[0] ?? null;
-
-                            if($produto && $produto['controla_estoque'] === 'S') {
-                                $estoque = $produtoEstoqueController->findOnly([
-                                    'filter' => [
-                                        'id_produto' => $item['id_produto'],
-                                        'id_empresa' => $currentData['id_empresa']
-                                    ]
-                                ])[0] ?? null;
-
-                                if($estoque) {
-                                    if($operacao['natureza_operacao'] === 'V') {
-                                        $newQuantidade = $estoque['estoque'] - $item['quantidade'];
-                                    } else {
-                                        $newQuantidade = $estoque['estoque'] + $item['quantidade'];
-                                    }
-                                    
-                                    $produtoEstoqueController = new ProdutosEstoqueController($estoque['id']);
-                                    $produtoEstoqueController->updateOnly(['estoque' => $newQuantidade]);
-
-                                    $produtoMovimentacaoController = new ProdutosMovimentacaoController();
-                                    $produtoMovimentacaoController->createOnly([
-                                        'id_conta' => $currentData['id_conta'],
-                                        'id_empresa' => $currentData['id_empresa'],
-                                        'id_produto' => $item['id_produto'],
-                                        'descricao' => ($operacao['natureza_operacao'] === 'V' ? 'Saída' : 'Entrada') . ' via venda #' . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT),
-                                        'estoque_anterior' => $estoque['estoque'],
-                                        'estoque_atual' => $newQuantidade,
-                                        'estoque_movimentado' => $item['quantidade'],
-                                        'tipo' => $operacao['natureza_operacao'] === 'V' ? 'S' : 'E',
-                                    ]);
-                                } 
                             }
                         }
                     }

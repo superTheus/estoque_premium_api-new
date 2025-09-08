@@ -8,45 +8,13 @@ use App\Models\BaseModel;
 use PDO;
 use PDOException;
 
-class ProdutosModel extends BaseModel
+class ProdutosMovimentacaoModel extends BaseModel
 {
     private $attributes = [];
-    protected $table = 'produtos';
+    protected $table = 'produto_movimentacao';
 
     public function __construct($id = null)
     {
-        $this->relationConfig = [
-            [
-                'property' => 'produtos_estoque',
-                'table' => 'produtos_estoque',
-                'model' => ProdutosEstoqueModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_produto',
-                'key' => 'id_empresa'
-            ],
-            [
-                'property' => 'produtos_imagens',
-                'model' => 'produtos_imagens',
-                'model' => ProdutosImagensModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_produto',
-            ],
-            [
-                'property' => 'produtos_kit',
-                'model' => 'produtos_kit',
-                'model' => ProdutosKitsModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_produto',
-                'key' => 'id_produto_kit',
-            ],
-            [
-                'property' => 'produto_movimentacao',
-                'model' => 'produto_movimentacao',
-                'model' => ProdutosMovimentacaoModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_produto'
-            ],
-        ];
         parent::__construct($id);
     }
 

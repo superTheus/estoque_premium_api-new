@@ -23,7 +23,7 @@ class ProdutosEstoqueController extends ControllerBase
             $offset = $data && isset($data['offset']) ? $data['offset'] : null;
             $order = $data && isset($data['order']) ? $data['order'] : [];
             $dateRange = $data && isset($data['date_ranger']) ? $data['date_ranger'] : [];
-            $results = $this->model->find(array_merge($filter, ["deletado" => "N"]), $limit, $offset, $order, $dateRange);
+            $results = $this->model->find($filter, $limit, $offset, $order, $dateRange);
 
             if (isset($data['includes'])) {
                 $this->processIncludes($results, $data['includes']);
@@ -72,7 +72,7 @@ class ProdutosEstoqueController extends ControllerBase
         }
     }
 
-    public function update($data)
+    public function updateOnly($data)
     {
         try {
             $currentData = $this->model->current();
@@ -136,12 +136,22 @@ class ProdutosEstoqueController extends ControllerBase
                     }
                 }
 
-                http_response_code(200);
-                echo json_encode($result);
+                return $result;
             } else {
-                http_response_code(404);
-                echo json_encode(["message" => "User not found"]);
+                throw new \Exception("User not found");
             }
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
+    public function update($data)
+    {
+        try {
+            $result = $this->updateOnly($data);
+
+            http_response_code(200);
+            echo json_encode($result);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(["message" => $e->getMessage()]);

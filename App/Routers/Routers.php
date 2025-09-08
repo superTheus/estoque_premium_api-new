@@ -6,10 +6,12 @@ use App\Controllers\CategoriasController;
 use App\Controllers\ClientesController;
 use App\Controllers\ContasUsuariosController;
 use App\Controllers\EmpresasController;
+use App\Controllers\FiscalController;
 use App\Controllers\FornecedoresController;
 use App\Controllers\MarcasController;
 use App\Controllers\OperacoesController;
 use App\Controllers\ProdutosController;
+use App\Controllers\RegrasFiscalController;
 use App\Controllers\SubcategoriasController;
 use App\Controllers\UsuariosController;
 use App\Controllers\VendasController;
@@ -274,6 +276,76 @@ class Routers
                     $vendasController = new VendasController($id);
                     $data = json_decode(file_get_contents('php://input'), true);
                     $vendasController->update($data);
+                });
+            });
+
+            $router->mount('/fiscal', function () use ($router) {
+                $router->post('/cest', function () {
+                    $fiscalController = new FiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fiscalController->listCest($data);
+                });
+
+                $router->post('/ibpt', function () {
+                    $fiscalController = new FiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fiscalController->listIbpt($data);
+                });
+
+                $router->post('/ncm', function () {
+                    $fiscalController = new FiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fiscalController->listNcm($data);
+                });
+
+                $router->post('/situacao', function () {
+                    $fiscalController = new FiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fiscalController->listSituacao($data);
+                });
+
+                $router->post('/cfop', function () {
+                    $fiscalController = new FiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fiscalController->listCFOP($data);
+                });
+
+                $router->post('/formas', function () {
+                    $fiscalController = new FiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fiscalController->listFormas($data);
+                });
+
+                $router->post('/unidades', function () {
+                    $fiscalController = new FiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fiscalController->listUnidades($data);
+                });
+
+                $router->post('/origem', function () {
+                    $fiscalController = new FiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fiscalController->listOrigem($data);
+                });
+            });
+
+            $router->mount('/regras-fiscais', function () use ($router) {
+                $router->post('/criar', function () {
+                    $regrasFiscalController = new RegrasFiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $regrasFiscalController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $regrasFiscalController = new RegrasFiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $regrasFiscalController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $regrasFiscalController = new RegrasFiscalController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $regrasFiscalController->update($data);
                 });
             });
         });
