@@ -11,7 +11,7 @@ class FiscalController extends ApiModel
     parent::__construct();
   }
 
-  public function createCompany($data = [])
+  public function criarEmpresa($data = [])
   {
     try {
       echo json_encode($this->createCompany($data));

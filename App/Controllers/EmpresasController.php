@@ -60,14 +60,81 @@ class EmpresasController extends ControllerBase
   public function create($data)
   {
     try {
+      $data['id_conta'] = $_REQUEST['id_conta'];
       $this->validateRequiredFields($this->model, $data);
 
-      $result = $this->model->insert($data);
+      if (isset($data['cnpj'])) {
+        $existing = $this->model->find(['cnpj' => $data['cnpj'], 'deletado' => 'N']);
+        if (count($existing) > 0) {
+          throw new \Exception("CNPJ já cadastrado");
+        }
+      }
+
+      if (isset($data['emite_nota']) && $data['emite_nota'] === 'S') {
+        if (!isset($data['situacao_tributaria']) || !isset($data['csc']) || !isset($data['csc_id']) || !isset($data['certificado']) || !isset($data['senha'])) {
+          throw new \Exception("Preencha todos os campos obrigatórios de tributação");
+        }
+
+        if (isset($data['homologacao']) && $data['homologacao'] === 'S') {
+          if (!isset($data['serie_homologacao']) || !isset($data['numero_nota_homologacao'])) {
+            throw new \Exception("Série e número de homologação são obrigatórios");
+          }
+        } else {
+          if (!isset($data['serie']) || !isset($data['numero_nota'])) {
+            throw new \Exception("Série e número da nota são obrigatórios");
+          }
+        }
+
+        $fiscalController = new FiscalController();
+        $certTest = $fiscalController->testeCertificado([
+          'certificado' => $data['certificado'],
+          'senha' => $data['senha']
+        ]);
+
+        if ($data['cnpj'] !== $certTest['cnpj']) {
+          throw new \Exception("CNPJ do certificado não corresponde ao CNPJ da empresa");
+        }
+
+        $companys = $fiscalController->listCompany([
+          "filter" => [
+            'cnpj' => preg_replace('/\D/', '', $data['cnpj'])
+          ]
+        ]);
+
+        if ($companys && count($companys) > 0) {
+          $company = $companys[0];
+          $updateCompany = $fiscalController->updateCompany($company['id'], [
+            "razao_social" => $data['razao_social'] ?? $company['razao_social'],
+            "nome_fantasia" => $data['nome_fantasia'] ?? $company['nome_fantasia'],
+            "telefone" => $data['telefone'] ?? $company['telefone'],
+            "email" => $data['email'] ?? $company['email'],
+            "cep" => $data['cep'] ?? $company['cep'],
+            "logradouro" => $data['logradouro'] ?? $company['logradouro'],
+            "numero" => $data['numero'] ?? "15",
+            "bairro" => $data['bairro'] ?? "Compensa",
+            "cidade" => $data['cidade'] ?? "Manaus",
+            "inscricao_estadual" => $data['inscricao_estadual'] ?? "054142563",
+            "uf" => $data['uf'] ?? "AM",
+            "serie_nfce" => 3,
+            "numero_nfce" => 100,
+            "serie_nfe" => 2,
+            "numero_nfe" => 100,
+            "situacao_tributaria" => "102",
+            "codigo_municipio" => "1302603",
+            "codigo_uf" => "13",
+            "tpamb" => "2",
+            "csc" => "925622871150be55",
+            "csc_id" => "000001"
+          ]);
+        }
+      }
+
+      // $result = $this->model->insert($data);
 
       http_response_code(200);
-      echo json_encode($result);
+      echo json_encode([]);
     } catch (\Exception $e) {
-      http_response_code(500);
+      http_response_code(400);
       echo json_encode(["message" => $e->getMessage()]);
     }
   }

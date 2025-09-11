@@ -34,26 +34,45 @@ class ApiModel
       ]);
 
       $statusCode = $response->getStatusCode();
+      if ($statusCode !== 200) {
+        throw new \Exception("Erro na requisição: " . $response->getReasonPhrase());
+      }
       $body = $response->getBody();
       return json_decode($body, true);
     } catch (RequestException $e) {
-      throw new \Exception("Erro na requisição: " . $e->getMessage());
+      if ($e->hasResponse()) {
+        $responseBody = $e->getResponse()->getBody()->getContents();
+        $responseData = json_decode($responseBody, true);
+
+        if (json_last_error() === JSON_ERROR_NONE && isset($responseData['message'])) {
+          throw new \Exception($responseData['message']);
+        } else {
+          throw new \Exception($responseBody);
+        }
+      }
+
+      throw new \Exception($e->getMessage());
     }
+  }
+
+  public function testeCertificado($data = [])
+  {
+    return $this->request('fiscal/certicate/test', 'POST', $data);
   }
 
   public function listCompany($data = [])
   {
-    return $this->request('/company/list', 'POST', $data);
+    return $this->request('company/list', 'POST', $data);
   }
 
   public function createCompany($data = [])
   {
-    return $this->request('/company/create', 'POST', $data);
+    return $this->request('company/create', 'POST', $data);
   }
 
   public function updateCompany($id, $data = [])
   {
-    return $this->request('/company/update/' . $id, 'PUT', $data);
+    return $this->request('company/update/' . $id, 'PUT', $data);
   }
 
   public function cest($data = [])
