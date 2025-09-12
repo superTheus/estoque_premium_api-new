@@ -327,6 +327,31 @@ class Routers
                     $data = json_decode(file_get_contents('php://input'), true);
                     $fiscalController->listOrigem($data);
                 });
+
+                $router->mount('/estados', function () use ($router) {
+                    $router->post('/', function () {
+                        $fiscalController = new FiscalController();
+                        $data = json_decode(file_get_contents('php://input'), true);
+                        $fiscalController->listEstados($data);
+                    });
+
+                    $router->get('/{uf}', function ($uf) {
+                        $fiscalController = new FiscalController();
+                        $fiscalController->listEstadosUnico($uf);
+                    });
+                });
+
+                $router->mount('/cidades', function () use ($router) {
+                    $router->post('/{uf}', function ($uf) {
+                        $fiscalController = new FiscalController();
+                        $fiscalController->listCidades($uf);
+                    });
+
+                    $router->get('/{cidade}', function ($cidade) {
+                        $fiscalController = new FiscalController();
+                        $fiscalController->listCidadesUnica($cidade);
+                    });
+                });
             });
 
             $router->mount('/regras-fiscais', function () use ($router) {

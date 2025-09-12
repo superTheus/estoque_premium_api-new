@@ -100,4 +100,44 @@ class FiscalController extends ApiModel
       echo json_encode(['error' => $e->getMessage()]);
     }
   }
+
+  public function listEstados($data = [])
+  {
+    try {
+      echo json_encode($this->estados($data));
+    } catch (\Exception $e) {
+      http_response_code(500);
+      echo json_encode(['error' => $e->getMessage()]);
+    }
+  }
+
+  public function listEstadosUnico($uf)
+  {
+    try {
+      echo json_encode($this->estadosUnico($uf));
+    } catch (\Exception $e) {
+      http_response_code(500);
+      echo json_encode(['error' => $e->getMessage()]);
+    }
+  } 
+
+  public function listCidades($uf)
+  {
+    try {
+      echo json_encode($this->cidades($uf));
+    } catch (\Exception $e) {
+      http_response_code(500);
+      echo json_encode(['error' => $e->getMessage()]);
+    }
+  }
+
+  public function listCidadesUnica($cidade)
+  {
+    try {
+      echo json_encode($this->cidadesUnico($cidade));
+    } catch (\Exception $e) {
+      http_response_code(500);
+      echo json_encode(['error' => $e->getMessage()]);
+    }
+  }
 }

@@ -71,18 +71,26 @@ class EmpresasController extends ControllerBase
       }
 
       if (isset($data['emite_nota']) && $data['emite_nota'] === 'S') {
-        if (!isset($data['situacao_tributaria']) || !isset($data['csc']) || !isset($data['csc_id']) || !isset($data['certificado']) || !isset($data['senha'])) {
+        if(!isset($data['inscricao_estadual'])) {
+          throw new \Exception("Inscrição estadual é obrigatória para emissão de nota");
+        }
+
+        if (!isset($data['situacao_tributaria']) || !isset($data['csc']) || !isset($data['csc_id']) || !isset($data['certificado']) || !isset($data['certificado_nome']) || !isset($data['senha']) || !isset($data['crt'])) {
           throw new \Exception("Preencha todos os campos obrigatórios de tributação");
         }
 
         if (isset($data['homologacao']) && $data['homologacao'] === 'S') {
-          if (!isset($data['serie_homologacao']) || !isset($data['numero_nota_homologacao'])) {
+          if (!isset($data['serie_nfce_homologacao']) && !isset($data['numero_nfce_homologacao']) && !isset($data['serie_nfe_homologacao']) && !isset($data['numero_nfe_homologacao'])) {
             throw new \Exception("Série e número de homologação são obrigatórios");
           }
         } else {
-          if (!isset($data['serie']) || !isset($data['numero_nota'])) {
+          if (!isset($data['serie_nfe']) && !isset($data['numero_nfe']) && !isset($data['serie_nfce']) && !isset($data['numero_nfce'])) {
             throw new \Exception("Série e número da nota são obrigatórios");
           }
+        }
+
+        if (!isset($data['cep']) || !isset($data['logradouro']) || !isset($data['numero']) || !isset($data['bairro']) || !isset($data['cidade']) || !isset($data['uf'])) {
+          throw new \Exception("Campos de endereço são obrigatórios para emissão de nota");
         }
 
         $fiscalController = new FiscalController();
@@ -101,41 +109,95 @@ class EmpresasController extends ControllerBase
           ]
         ]);
 
+        $estado = $fiscalController->estadosUnico($data['uf']);
+        $cidade = $fiscalController->cidadesUnico($data['cidade']);
+
+        $data['codigo_uf'] = $estado ? $estado['codigo_ibge'] : null;
+        $data['codigo_municipio'] = $cidade ? $cidade['codigo_ibge'] : null;
+
         if ($companys && count($companys) > 0) {
           $company = $companys[0];
-          $updateCompany = $fiscalController->updateCompany($company['id'], [
+          $fiscalController->updateCompany($company['id'], [
+            "cnpj" => preg_replace('/\D/', '', $data['cnpj']),
             "razao_social" => $data['razao_social'] ?? $company['razao_social'],
             "nome_fantasia" => $data['nome_fantasia'] ?? $company['nome_fantasia'],
             "telefone" => $data['telefone'] ?? $company['telefone'],
             "email" => $data['email'] ?? $company['email'],
             "cep" => $data['cep'] ?? $company['cep'],
             "logradouro" => $data['logradouro'] ?? $company['logradouro'],
-            "numero" => $data['numero'] ?? "15",
-            "bairro" => $data['bairro'] ?? "Compensa",
-            "cidade" => $data['cidade'] ?? "Manaus",
-            "inscricao_estadual" => $data['inscricao_estadual'] ?? "054142563",
-            "uf" => $data['uf'] ?? "AM",
-            "serie_nfce" => 3,
-            "numero_nfce" => 100,
-            "serie_nfe" => 2,
-            "numero_nfe" => 100,
-            "situacao_tributaria" => "102",
-            "codigo_municipio" => "1302603",
-            "codigo_uf" => "13",
-            "tpamb" => "2",
-            "csc" => "925622871150be55",
-            "csc_id" => "000001"
+            "numero" => $data['numero'] ?? $company['numero'],
+            "bairro" => $data['bairro'] ?? $company['bairro'],
+            "cidade" => $data['cidade'] ?? $company['cidade'],
+            "codigo_municipio" => $data['codigo_municipio'] ?? $company['codigo_municipio'],
+            "uf" => $data['uf'] ?? $company['uf'],
+            "codigo_uf" => $data['codigo_uf'] ?? $company['codigo_uf'],
+            "inscricao_estadual" => $data['inscricao_estadual'] ?? $company['inscricao_estadual'],
+            "inscricao_municipal" => $data['inscricao_municipal'] ?? $company['inscricao_municipal'],
+            "certificado" => $data['certificado'] ?? $company['certificado'],
+            "senha" => $data['senha'] ?? $company['senha'],
+            "senha" => $data['senha'] ?? $company['senha'],
+            "csc" => $data['csc'] ?? $company['csc'],
+            "csc_id" => $data['csc_id'] ?? $company['csc_id'],
+            "tpamb" => isset($data['homologacao']) && $data['homologacao'] === 'S' ? 2 : 1,
+            "serie_nfce" => $data['serie_nfce'] ?? $company['serie_nfce'],
+            "numero_nfce" => $data['numero_nfce'] ?? $company['numero_nfce'],
+            "serie_nfe" => $data['serie_nfe'] ?? $company['serie_nfe'],
+            "numero_nfe" => $data['numero_nfe'] ?? $company['numero_nfe'],
+            "situacao_tributaria" => $data['situacao_tributaria'] ?? $company['situacao_tributaria'],
+            "csc_homologacao" => $data['csc_homologacao'] ?? $company['csc_homologacao'],
+            "csc_id_homologacao" => $data['csc_id_homologacao'] ?? $company['csc_id_homologacao'],
+            "serie_nfce_homologacao" => $data['serie_nfce_homologacao'] ?? $company['serie_nfce_homologacao'],
+            "numero_nfce_homologacao" => $data['numero_nfce_homologacao'] ?? $company['numero_nfce_homologacao'],
+            "serie_nfe_homologacao" => $data['serie_nfe_homologacao'] ?? $company['serie_nfe_homologacao'],
+            "numero_nfe_homologacao" => $data['numero_nfe_homologacao'] ?? $company['numero_nfe_homologacao'],
+            "crt" => $data['crt'] ?? $company['crt']
+          ]);
+        } else {
+          $fiscalController->createCompany([
+            "cnpj" => preg_replace('/\D/', '', $data['cnpj']),
+            "razao_social" => $data['razao_social'],
+            "nome_fantasia" => $data['nome_fantasia'],
+            "telefone" => $data['telefone'],
+            "email" => $data['email'],
+            "cep" => $data['cep'],
+            "logradouro" => $data['logradouro'],
+            "numero" => $data['numero'],
+            "bairro" => $data['bairro'],
+            "cidade" => $data['cidade'],
+            "codigo_municipio" => $data['codigo_municipio'],
+            "uf" => $data['uf'],
+            "codigo_uf" => $data['codigo_uf'],
+            "inscricao_estadual" => $data['inscricao_estadual'],
+            "inscricao_municipal" => $data['inscricao_municipal'] ?? '',
+            "certificado" => $data['certificado'],
+            "senha" => $data['senha'],
+            "senha" => $data['senha'],
+            "csc" => $data['csc'],
+            "csc_id" => $data['csc_id'],
+            "tpamb" => isset($data['homologacao']) && $data['homologacao'] === 'S' ? 2 : 1,
+            "serie_nfce" => $data['serie_nfce'] ?? null,
+            "numero_nfce" => $data['numero_nfce'] ?? null,
+            "serie_nfe" => $data['serie_nfe'] ?? null,
+            "numero_nfe" => $data['numero_nfe'] ?? null,
+            "situacao_tributaria" => $data['situacao_tributaria'] ?? null,
+            "csc_homologacao" => $data['csc_homologacao'] ?? null,
+            "csc_id_homologacao" => $data['csc_id_homologacao'] ?? null,
+            "serie_nfce_homologacao" => $data['serie_nfce_homologacao'] ?? null,
+            "numero_nfce_homologacao" => $data['numero_nfce_homologacao'] ?? null,
+            "serie_nfe_homologacao" => $data['serie_nfe_homologacao'] ?? null,
+            "numero_nfe_homologacao" => $data['numero_nfe_homologacao'] ?? null,
+            "crt" => $data['crt'],
           ]);
         }
       }
 
-      // $result = $this->model->insert($data);
+      $result = $this->model->insert($data);
 
       http_response_code(200);
-      echo json_encode([]);
+      echo json_encode($result);
     } catch (\Exception $e) {
       http_response_code(400);
-      echo json_encode(["message" => $e->getMessage()]);
+      echo json_encode($e->getMessage());
     }
   }
 

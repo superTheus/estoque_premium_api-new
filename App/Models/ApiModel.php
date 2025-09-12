@@ -22,8 +22,16 @@ class ApiModel
     ]);
   }
 
-  private function request($url, $type, $data = [])
+  private function request($url, $type, $data = [], $debug = false)
   {
+    if ($debug) {
+      die(json_encode([
+        'url' => $this->baseurl .  $url,
+        'type' => $type,
+        'data' => $data
+      ]));
+    }
+
     try {
       $response = $this->client->request($type, $url, [
         'json' => $data,
@@ -34,6 +42,7 @@ class ApiModel
       ]);
 
       $statusCode = $response->getStatusCode();
+
       if ($statusCode !== 200) {
         throw new \Exception("Erro na requisição: " . $response->getReasonPhrase());
       }
@@ -113,5 +122,25 @@ class ApiModel
   public function origem($data = [])
   {
     return $this->request('origem', 'POST', $data);
+  }
+
+  public function estados($data = [])
+  {
+    return $this->request('estados', 'POST', $data);
+  }
+  
+  public function estadosUnico($uf)
+  {
+    return $this->request('estados/' . $uf, 'GET');
+  }
+
+  public function cidades($uf)
+  {
+    return $this->request('municipios/' . $uf, 'POST');
+  }
+
+  public function cidadesUnico($cidade)
+  {
+    return $this->request('municipios/' . $cidade, 'GET');
   }
 }
