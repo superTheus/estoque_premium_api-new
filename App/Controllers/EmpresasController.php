@@ -75,7 +75,7 @@ class EmpresasController extends ControllerBase
           throw new \Exception("Inscrição estadual é obrigatória para emissão de nota");
         }
 
-        if (!isset($data['situacao_tributaria']) || !isset($data['csc']) || !isset($data['csc_id']) || !isset($data['certificado']) || !isset($data['certificado_nome']) || !isset($data['senha']) || !isset($data['crt'])) {
+        if (!isset($data['situacao_tributaria']) || !isset($data['certificado']) || !isset($data['certificado_nome']) || !isset($data['senha']) || !isset($data['crt'])) {
           throw new \Exception("Preencha todos os campos obrigatórios de tributação");
         }
 
@@ -83,9 +83,17 @@ class EmpresasController extends ControllerBase
           if (!isset($data['serie_nfce_homologacao']) && !isset($data['numero_nfce_homologacao']) && !isset($data['serie_nfe_homologacao']) && !isset($data['numero_nfe_homologacao'])) {
             throw new \Exception("Série e número de homologação são obrigatórios");
           }
+
+          if(!isset($data['csc_homologacao']) || !isset($data['csc_id_homologacao'])) {
+            throw new \Exception("CSCs e IDs de homologação são obrigatórios");
+          }
         } else {
           if (!isset($data['serie_nfe']) && !isset($data['numero_nfe']) && !isset($data['serie_nfce']) && !isset($data['numero_nfce'])) {
             throw new \Exception("Série e número da nota são obrigatórios");
+          }
+
+          if(!isset($data['csc']) || !isset($data['csc_id'])) {
+            throw new \Exception("CSCs e IDs são obrigatórios");
           }
         }
 
@@ -153,7 +161,7 @@ class EmpresasController extends ControllerBase
             "crt" => $data['crt'] ?? $company['crt']
           ]);
         } else {
-          $fiscalController->createCompany([
+          $create = $fiscalController->createCompany([
             "cnpj" => preg_replace('/\D/', '', $data['cnpj']),
             "razao_social" => $data['razao_social'],
             "nome_fantasia" => $data['nome_fantasia'],
@@ -399,19 +407,19 @@ class EmpresasController extends ControllerBase
           } else {
             $fiscalController->createCompany([
               "cnpj" => preg_replace('/\D/', '', $data['cnpj']),
-              "razao_social" => $data['razao_social'],
-              "nome_fantasia" => $data['nome_fantasia'],
-              "telefone" => $data['telefone'],
-              "email" => $data['email'],
-              "cep" => $data['cep'],
-              "logradouro" => $data['logradouro'],
-              "numero" => $data['numero'],
-              "bairro" => $data['bairro'],
-              "cidade" => $data['cidade'],
+              "razao_social" => $data['razao_social'] ?? $currentData['razao_social'],
+              "nome_fantasia" => $data['nome_fantasia'] ?? $currentData['nome_fantasia'],
+              "telefone" => $data['telefone'] ?? $currentData['telefone'],
+              "email" => $data['email'] ?? $currentData['email'],
+              "cep" => $data['cep'] ?? $currentData['cep'],
+              "logradouro" => $data['logradouro'] ?? $currentData['logradouro'],
+              "numero" => $data['numero'] ?? $currentData['numero'],
+              "bairro" => $data['bairro'] ?? $currentData['bairro'],
+              "cidade" => $data['cidade'] ?? $currentData['cidade'],
               "codigo_municipio" => $data['codigo_municipio'],
-              "uf" => $data['uf'],
-              "codigo_uf" => $data['codigo_uf'],
-              "inscricao_estadual" => $data['inscricao_estadual'],
+              "uf" => $data['uf'] ?? $currentData['uf'],
+              "codigo_uf" => $data['codigo_uf'] ?? $currentData['codigo_uf'],
+              "inscricao_estadual" => $data['inscricao_estadual'] ?? $currentData['inscricao_estadual'],
               "inscricao_municipal" => $data['inscricao_municipal'] ?? '',
               "certificado" => $data['certificado'],
               "senha" => $data['senha'],

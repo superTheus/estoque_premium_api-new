@@ -280,6 +280,16 @@ class Routers
             });
 
             $router->mount('/fiscal', function () use ($router) {
+                $router->get('/nfce/{venda}', function ($venda) {
+                    $fiscalController = new FiscalController();
+                    $fiscalController->emitirNFCE($venda);
+                });
+
+                $router->get('/nfe/{venda}', function ($venda) {
+                    $fiscalController = new FiscalController();
+                    $fiscalController->emitirNFE($venda);
+                });
+
                 $router->post('/cest', function () {
                     $fiscalController = new FiscalController();
                     $data = json_decode(file_get_contents('php://input'), true);

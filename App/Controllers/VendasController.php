@@ -72,7 +72,7 @@ class VendasController extends ControllerBase
         }
     }
 
-    public function update($data)
+    public function updateOnly($data)
     {
         try {
             $currentData = $this->model->current();
@@ -136,7 +136,7 @@ class VendasController extends ControllerBase
                     }
                 }
 
-                if($currentData['status'] !== $data['status'] && $data['status'] === 'FE') {
+                if (isset($data['status']) && $currentData['status'] !== $data['status'] && $data['status'] === 'FE') {
                     $operacoesController = new OperacoesController();
                     $vendaProdutosController = new VendaProdutosController();
                     $produtosController = new ProdutosController();
@@ -144,18 +144,18 @@ class VendasController extends ControllerBase
                     $operacao = $operacoesController->findOnly([
                         'filter' => ['id' => $currentData['id_operacao']]
                     ])[0] ?? null;
-                        
-                    if($operacao && $operacao['mov_estoque'] === 'S') {
+
+                    if ($operacao && $operacao['mov_estoque'] === 'S') {
                         $itens = $vendaProdutosController->findOnly([
                             'filter' => ['id_venda' => $currentData['id']]
                         ]);
 
-                        foreach($itens as $item) {
+                        foreach ($itens as $item) {
                             $produto = $produtosController->findOnly([
                                 'filter' => ['id' => $item['id_produto']]
                             ])[0] ?? null;
 
-                            if($produto && $produto['controla_estoque'] === 'S') {
+                            if ($produto && $produto['controla_estoque'] === 'S') {
                                 $estoque = $produtoEstoqueController->findOnly([
                                     'filter' => [
                                         'id_produto' => $item['id_produto'],
@@ -163,13 +163,13 @@ class VendasController extends ControllerBase
                                     ]
                                 ])[0] ?? null;
 
-                                if($estoque) {
-                                    if($operacao['natureza_operacao'] === 'V') {
+                                if ($estoque) {
+                                    if ($operacao['natureza_operacao'] === 'V') {
                                         $newQuantidade = $estoque['estoque'] - $item['quantidade'];
                                     } else {
                                         $newQuantidade = $estoque['estoque'] + $item['quantidade'];
                                     }
-                                    
+
                                     $produtoEstoqueController = new ProdutosEstoqueController($estoque['id']);
                                     $produtoEstoqueController->updateOnly(['estoque' => $newQuantidade]);
 
@@ -184,18 +184,28 @@ class VendasController extends ControllerBase
                                         'estoque_movimentado' => $item['quantidade'],
                                         'tipo' => $operacao['natureza_operacao'] === 'V' ? 'S' : 'E',
                                     ]);
-                                } 
+                                }
                             }
                         }
                     }
                 }
 
-                http_response_code(200);
-                echo json_encode($result);
+                return $result;
             } else {
-                http_response_code(404);
-                echo json_encode(["message" => "User not found"]);
+                throw new \Exception("Venda não encontrada.");
             }
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
+    public function update($data)
+    {
+        try {
+            $result = $this->updateOnly($data);
+
+            http_response_code(200);
+            echo json_encode($result);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(["message" => $e->getMessage()]);

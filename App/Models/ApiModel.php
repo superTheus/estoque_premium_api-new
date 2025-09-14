@@ -143,4 +143,14 @@ class ApiModel
   {
     return $this->request('municipios/' . $cidade, 'GET');
   }
+
+  public function nfce($data)
+  {
+    return $this->request('fiscal/nfce', 'POST', $data);
+  }
+
+  public function nfe($data)
+  {
+    return $this->request('fiscal/nfe', 'POST', $data, true);
+  }
 }

@@ -58,8 +58,8 @@ abstract class BaseModel extends Connection
             "controller" => Controllers\SubcategoriasController::class,
         ],
         [
-            "property" => "cliente",
-            "table" => "cliente",
+            "property" => "clientes",
+            "table" => "clientes",
             "model" => ClientesModel::class,
             "controller" => Controllers\ClientesController::class,
         ],
@@ -140,6 +140,12 @@ abstract class BaseModel extends Connection
             "table" => "produto_movimentacao",
             "model" => ProdutosMovimentacaoModel::class,
             "controller" => Controllers\ProdutosMovimentacaoController::class,
+        ],
+        [
+            "property" => "formas_pagamento",
+            "table" => "formas_pagamento",
+            "model" => FormasPagamentoModel::class,
+            "controller" => Controllers\FormasPagamentoController::class,
         ],
     ];
 
