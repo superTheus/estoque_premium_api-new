@@ -206,10 +206,10 @@ class Routers
                     $clientesController->create($data);
                 });
 
-                $router->post('/listar', function () {
+                $router->post('/buscar', function () {
                     $clientesController = new ClientesController();
                     $data = json_decode(file_get_contents('php://input'), true);
-                    $clientesController->find($data);
+                    $clientesController->search($data);
                 });
 
                 $router->put('/atualizar/{id}', function ($id) {
@@ -224,6 +224,12 @@ class Routers
                     $produtosController = new ProdutosController();
                     $data = json_decode(file_get_contents('php://input'), true);
                     $produtosController->create($data);
+                });
+
+                $router->post('/buscar', function () {
+                    $produtosController = new ProdutosController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $produtosController->search($data);
                 });
 
                 $router->post('/listar', function () {

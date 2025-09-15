@@ -42,6 +42,30 @@ class ClientesModel extends BaseModel
         throw new \BadMethodCallException("Método {$method} não existe");
     }
 
+    public function search($searchTerm, $limit = 10, $offset = 0)
+    {
+        try {
+            $queryBuilder = new QueryBuilder($this->conn, "clientes");
+            $result = $queryBuilder->select("*")
+                ->multipleOrWhere([
+                    ["clientes.nome", "%$searchTerm%", 'LIKE'],
+                    ["clientes.razao_social", "%$searchTerm%", 'LIKE'],
+                    ["clientes.apelido", "%$searchTerm%", 'LIKE'],
+                    ["clientes.rg", "%$searchTerm%", 'LIKE'],
+                    ["clientes.rg", "%$searchTerm%", 'LIKE'],
+                    ["clientes.inscricao_estadual", "%$searchTerm%", 'LIKE'],
+                    ["clientes.email", "%$searchTerm%", 'LIKE'],
+                    ["clientes.telefone", "%$searchTerm%", 'LIKE'],
+                    ["clientes.celular", "%$searchTerm%", 'LIKE'],
+                    ["clientes.documento", "%$searchTerm%", 'LIKE']
+                ])->limit($limit)->offset($offset)->execute();
+
+            return $result;
+        } catch (\PDOException $e) {
+            throw new \PDOException($e->getMessage());
+        }
+    }
+
     public function findById($id)
     {
         $sql = "SELECT * FROM {$this->table} WHERE id = :id";

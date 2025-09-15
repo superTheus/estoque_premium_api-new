@@ -23,7 +23,7 @@ class ProdutosImagensController extends ControllerBase
             $offset = $data && isset($data['offset']) ? $data['offset'] : null;
             $order = $data && isset($data['order']) ? $data['order'] : [];
             $dateRange = $data && isset($data['date_ranger']) ? $data['date_ranger'] : [];
-            $results = $this->model->find(array_merge($filter, ["deletado" => "N"]), $limit, $offset, $order, $dateRange);
+            $results = $this->model->find($filter, $limit, $offset, $order, $dateRange);
 
             if (isset($data['includes'])) {
                 $this->processIncludes($results, $data['includes']);
