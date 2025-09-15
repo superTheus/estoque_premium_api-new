@@ -75,11 +75,11 @@ class ProdutosModel extends BaseModel
         throw new \BadMethodCallException("Método {$method} não existe");
     }
 
-    public function search($searchTerm, $limit = 10, $offset = 0)
+    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
     {
         try {
             $queryBuilder = new QueryBuilder($this->conn, "produtos");
-            $result = $queryBuilder->select("*")
+            $result = $queryBuilder->select("produtos.*")
                 ->leftJoin("marcas", "marcas.id = produtos.id_marca")
                 ->leftJoin("categorias", "categorias.id = produtos.id_categoria")
                 ->leftJoin("subcategorias", "subcategorias.id = produtos.id_subcategoria")
@@ -91,7 +91,8 @@ class ProdutosModel extends BaseModel
                     ["categorias.descricao", "%$searchTerm%", 'LIKE'],
                     ["subcategorias.descricao", "%$searchTerm%", 'LIKE'],
                     ["fornecedores.nome", "%$searchTerm%", 'LIKE']
-                ])->limit($limit)->offset($offset)->execute();
+                ])->where("produtos.id_conta", $idConta)
+                  ->limit($limit)->offset($offset)->execute();
 
             return $result;
         } catch (\PDOException $e) {

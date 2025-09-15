@@ -22,7 +22,7 @@ class ProdutosController extends ControllerBase
                 throw new \Exception("O termo de busca é obrigatório");
             }
 
-            $produtos = $this->model->search($data['searchTerm'], $data['limit'] ?? 10, $data['offset'] ?? 0);
+            $produtos = $this->model->search($data['searchTerm'], $_REQUEST['id_conta'], $data['limit'] ?? 10, $data['offset'] ?? 0);
 
             foreach ($produtos as $key => $item) {
                 $marcasController = new MarcasController($item['id_marca']);
