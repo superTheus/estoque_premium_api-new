@@ -15,6 +15,53 @@ class ProdutosController extends ControllerBase
         $this->model = new ProdutosModel($id ? $id : null);
     }
 
+    public function search($data)
+    {
+        try {
+            if (!isset($data['searchTerm']) || empty($data['searchTerm'])) {
+                throw new \Exception("O termo de busca é obrigatório");
+            }
+
+            $produtos = $this->model->search($data['searchTerm'], $_REQUEST['id_conta'], $data['limit'] ?? 10, $data['offset'] ?? 0);
+
+            foreach ($produtos as $key => $item) {
+                $marcasController = new MarcasController($item['id_marca']);
+                $item['marca'] = $marcasController->findUnique();
+
+                $categoriasController = new CategoriasController($item['id_categoria']);
+                $item['categoria'] = $categoriasController->findUnique();
+
+                $subcategoriasController = new SubcategoriasController($item['id_subcategoria']);
+                $item['subcategoria'] = $subcategoriasController->findUnique();
+
+                $fornecedoresController = new FornecedoresController($item['id_fornecedor']);
+                $item['fornecedor'] = $fornecedoresController->findUnique();
+
+                $produtosImagensController = new ProdutosImagensController();
+                $item['imagens'] = $produtosImagensController->findOnly([
+                    "filter" => [
+                        "id_produto" => $item['id']
+                    ]
+                ]) ?? [];
+
+                $produtosEstoqueController = new ProdutosEstoqueController();
+                $item['estoque'] = $produtosEstoqueController->findOnly([
+                    "filter" => [
+                        "id_produto" => $item['id']
+                    ]
+                ]) ?? [];
+
+                $produtos[$key] = $item;
+            }
+
+            http_response_code(200);
+            echo json_encode($produtos);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(["message" => $e->getMessage()]);
+        }
+    }
+
     public function findOnly($data = [])
     {
         try {
