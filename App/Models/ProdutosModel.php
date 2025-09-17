@@ -74,6 +74,19 @@ class ProdutosModel extends BaseModel
         throw new \BadMethodCallException("Método {$method} não existe");
     }
 
+    public function search($searchTerm)
+    {
+        try {
+            $queryBuilder = new QueryBuilder($this->conn, "produtos");
+            $queryBuilder->select("*")
+                ->leftJoin("produtos_estoque", "produtos_estoque.id_produto = produtos.id");
+
+            return $queryBuilder->execute()->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            throw new \PDOException($e->getMessage());
+        }
+    }
+
     public function findById($id)
     {
         $sql = "SELECT * FROM {$this->table} WHERE id = :id";
