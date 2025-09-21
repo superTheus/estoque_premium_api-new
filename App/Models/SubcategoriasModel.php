@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Controllers\UploadsController;
 use App\Models\BaseModel;
 
 use PDO;
@@ -40,6 +39,24 @@ class SubcategoriasModel extends BaseModel
         }
 
         throw new \BadMethodCallException("Método {$method} não existe");
+    }
+
+    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
+    {
+        try {
+            $queryBuilder = new QueryBuilder($this->conn, $this->table);
+            $result = $queryBuilder->select("{$this->table}.*")
+                ->leftJoin("categorias", "categorias.id = {$this->table}.id_categoria")
+                ->multipleOrWhere([
+                    ["{$this->table}.descricao", "%$searchTerm%", 'LIKE'],
+                    ["categorias.descricao", "%$searchTerm%", 'LIKE'],
+                ])->where("{$this->table}.id_conta", $idConta)
+                ->limit($limit)->offset($offset)->execute();
+
+            return $result;
+        } catch (\PDOException $e) {
+            throw new \PDOException($e->getMessage());
+        }
     }
 
     public function findById($id)

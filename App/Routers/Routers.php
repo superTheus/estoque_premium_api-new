@@ -50,6 +50,12 @@ class Routers
             });
 
             $router->mount('/usuarios', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $usuariosController = new UsuariosController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $usuariosController->search($data);
+                });
+
                 $router->post('/criar', function () {
                     $usuariosController = new UsuariosController();
                     $data = json_decode(file_get_contents('php://input'), true);
@@ -76,6 +82,12 @@ class Routers
             });
 
             $router->mount('/empresas', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $empresasController = new EmpresasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $empresasController->search($data);
+                });
+
                 $router->post('/criar', function () {
                     $empresasController = new EmpresasController();
                     $data = json_decode(file_get_contents('php://input'), true);
@@ -96,6 +108,12 @@ class Routers
             });
 
             $router->mount('/marcas', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $marcasController = new MarcasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $marcasController->search($data);
+                });
+
                 $router->post('/criar', function () {
                     $marcasController = new MarcasController();
                     $data = json_decode(file_get_contents('php://input'), true);
@@ -122,6 +140,12 @@ class Routers
             });
 
             $router->mount('/fornecedores', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $fornecedoresController = new FornecedoresController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fornecedoresController->search($data);
+                });
+
                 $router->post('/criar', function () {
                     $fornecedoresController = new FornecedoresController();
                     $data = json_decode(file_get_contents('php://input'), true);
@@ -148,6 +172,12 @@ class Routers
             });
 
             $router->mount('/categorias', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $categoriasController = new CategoriasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $categoriasController->search($data);
+                });
+
                 $router->post('/criar', function () {
                     $categoriasController = new CategoriasController();
                     $data = json_decode(file_get_contents('php://input'), true);
@@ -174,6 +204,11 @@ class Routers
             });
 
             $router->mount('/subcategorias', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $subcategoriasController = new SubcategoriasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $subcategoriasController->search($data);
+                });
                 $router->post('/criar', function () {
                     $subcategoriasController = new SubcategoriasController();
                     $data = json_decode(file_get_contents('php://input'), true);
@@ -200,6 +235,12 @@ class Routers
             });
 
             $router->mount('/clientes', function () use ($router) {
+                $router->post('/listar', function () {
+                    $clientesController = new ClientesController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $clientesController->find($data);
+                });
+
                 $router->post('/criar', function () {
                     $clientesController = new ClientesController();
                     $data = json_decode(file_get_contents('php://input'), true);
@@ -246,6 +287,12 @@ class Routers
             });
 
             $router->mount('/operacoes', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $operacoesController = new OperacoesController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $operacoesController->search($data);
+                });
+
                 $router->post('/criar', function () {
                     $operacoesController = new OperacoesController();
                     $data = json_decode(file_get_contents('php://input'), true);
@@ -368,9 +415,21 @@ class Routers
                         $fiscalController->listCidadesUnica($cidade);
                     });
                 });
+
+                $router->post('/testar', function () {
+                    $fiscalController = new FiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $fiscalController->testarCertificado($data);
+                });
             });
 
             $router->mount('/regras-fiscais', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $regrasFiscalController = new RegrasFiscalController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $regrasFiscalController->search($data);
+                });
+
                 $router->post('/criar', function () {
                     $regrasFiscalController = new RegrasFiscalController();
                     $data = json_decode(file_get_contents('php://input'), true);

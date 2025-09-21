@@ -15,23 +15,6 @@ class ClientesController extends ControllerBase
         $this->model = new ClientesModel($id ? $id : null);
     }
 
-    public function search($data)
-    {
-        try {
-            if (!isset($data['searchTerm']) || empty($data['searchTerm'])) {
-                throw new \Exception("O termo de busca é obrigatório");
-            }
-
-            $clientes = $this->model->search($data['searchTerm'], $data['limit'] ?? 10, $data['offset'] ?? 0);
-
-            http_response_code(200);
-            echo json_encode($clientes);
-        } catch (\Exception $e) {
-            http_response_code(500);
-            echo json_encode(["message" => $e->getMessage()]);
-        }
-    }
-
     public function findOnly($data = [])
     {
         try {

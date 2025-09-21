@@ -66,6 +66,18 @@ class ApiModel
 
   public function testeCertificado($data = [])
   {
+    if (empty($data)) {
+      throw new \Exception("Dados do certificado não fornecidos.");
+    }
+
+    if(!isset($data['certificado'])) {
+      throw new \Exception("Certificado é obrigatório.");
+    }
+
+    if(!isset($data['senha'])) {
+      throw new \Exception("Senha é obrigatória.");
+    }
+    
     return $this->request('fiscal/certicate/test', 'POST', $data);
   }
 

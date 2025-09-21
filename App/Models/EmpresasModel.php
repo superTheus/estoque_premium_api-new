@@ -41,6 +41,26 @@ class EmpresasModel extends BaseModel
     throw new \BadMethodCallException("Método {$method} não existe");
   }
 
+  public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
+  {
+    try {
+      $queryBuilder = new QueryBuilder($this->conn, $this->table);
+      $result = $queryBuilder->select("{$this->table}.*")
+        ->multipleOrWhere([
+          ["{$this->table}.cnpj", "%$searchTerm%", 'LIKE'],
+          ["{$this->table}.razao_social", "%$searchTerm%", 'LIKE'],
+          ["{$this->table}.nome_fantasia", "%$searchTerm%", 'LIKE'],
+          ["{$this->table}.inscricao_estadual", "%$searchTerm%", 'LIKE'],
+          ["{$this->table}.email", "%$searchTerm%", 'LIKE'],
+        ])->where("{$this->table}.id_conta", $idConta)
+        ->limit($limit)->offset($offset)->execute();
+
+      return $result;
+    } catch (\PDOException $e) {
+      throw new \PDOException($e->getMessage());
+    }
+  }
+
   public function findById($id)
   {
     $sql = "SELECT * FROM {$this->table} WHERE id = :id";

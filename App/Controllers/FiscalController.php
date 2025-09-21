@@ -293,4 +293,14 @@ class FiscalController extends ApiModel
       echo json_encode(['error' => $e->getMessage()]);
     }
   }
+
+  public function testarCertificado($data = [])
+  {
+    try {
+      echo json_encode($this->testeCertificado($data));
+    } catch (\Exception $e) {
+      http_response_code(400);
+      echo json_encode($e->getMessage());
+    }
+  }
 }

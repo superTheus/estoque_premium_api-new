@@ -26,26 +26,26 @@ class ProdutosController extends ControllerBase
 
             foreach ($produtos as $key => $item) {
                 $marcasController = new MarcasController($item['id_marca']);
-                $item['marca'] = $marcasController->findUnique();
+                $item['marcas'][] = $marcasController->findUnique();
 
                 $categoriasController = new CategoriasController($item['id_categoria']);
-                $item['categoria'] = $categoriasController->findUnique();
+                $item['categorias'][] = $categoriasController->findUnique();
 
                 $subcategoriasController = new SubcategoriasController($item['id_subcategoria']);
-                $item['subcategoria'] = $subcategoriasController->findUnique();
+                $item['subcategorias'][] = $subcategoriasController->findUnique();
 
                 $fornecedoresController = new FornecedoresController($item['id_fornecedor']);
-                $item['fornecedor'] = $fornecedoresController->findUnique();
+                $item['fornecedores'][] = $fornecedoresController->findUnique();
 
                 $produtosImagensController = new ProdutosImagensController();
-                $item['imagens'] = $produtosImagensController->findOnly([
+                $item['produtos_imagens'] = $produtosImagensController->findOnly([
                     "filter" => [
                         "id_produto" => $item['id']
                     ]
                 ]) ?? [];
 
                 $produtosEstoqueController = new ProdutosEstoqueController();
-                $item['estoque'] = $produtosEstoqueController->findOnly([
+                $item['produtos_estoque'] = $produtosEstoqueController->findOnly([
                     "filter" => [
                         "id_produto" => $item['id']
                     ]

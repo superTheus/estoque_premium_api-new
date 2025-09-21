@@ -75,7 +75,7 @@ class EmpresasController extends ControllerBase
           throw new \Exception("Inscrição estadual é obrigatória para emissão de nota");
         }
 
-        if (!isset($data['situacao_tributaria']) || !isset($data['certificado']) || !isset($data['certificado_nome']) || !isset($data['senha']) || !isset($data['crt'])) {
+        if (!isset($data['certificado']) || !isset($data['certificado_nome']) || !isset($data['senha']) || !isset($data['crt'])) {
           throw new \Exception("Preencha todos os campos obrigatórios de tributação");
         }
 
@@ -107,7 +107,7 @@ class EmpresasController extends ControllerBase
           'senha' => $data['senha']
         ]);
 
-        if ($data['cnpj'] !== $certTest['cnpj']) {
+        if (preg_replace('/\D/', '', $data['cnpj']) !== $certTest['cnpj']) {
           throw new \Exception("CNPJ do certificado não corresponde ao CNPJ da empresa");
         }
 
@@ -176,12 +176,12 @@ class EmpresasController extends ControllerBase
             "uf" => $data['uf'],
             "codigo_uf" => $data['codigo_uf'],
             "inscricao_estadual" => $data['inscricao_estadual'],
-            "inscricao_municipal" => $data['inscricao_municipal'] ?? '',
-            "certificado" => $data['certificado'],
-            "senha" => $data['senha'],
-            "senha" => $data['senha'],
-            "csc" => $data['csc'],
-            "csc_id" => $data['csc_id'],
+            "inscricao_municipal" => $data['inscricao_municipal'] ?? null,
+            "certificado" => $data['certificado'] ?? null,
+            "senha" => $data['senha'] ?? null,
+            "senha" => $data['senha'] ?? null,
+            "csc" => $data['csc'] ?? null,
+            "csc_id" => $data['csc_id'] ?? null,
             "tpamb" => isset($data['homologacao']) && $data['homologacao'] === 'S' ? 2 : 1,
             "serie_nfce" => $data['serie_nfce'] ?? null,
             "numero_nfce" => $data['numero_nfce'] ?? null,

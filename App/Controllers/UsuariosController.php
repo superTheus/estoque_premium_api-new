@@ -37,6 +37,23 @@ class UsuariosController extends ControllerBase
         }
     }
 
+    public function search($data)
+    {
+        try {
+            if (!isset($data['searchTerm']) || empty($data['searchTerm'])) {
+                throw new \Exception("O termo de busca é obrigatório");
+            }
+
+            $usuarios = $this->model->search($data['searchTerm'], $_REQUEST['id_conta'], $data['limit'] ?? 10, $data['offset'] ?? 0);
+
+            http_response_code(200);
+            echo json_encode($usuarios);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(["message" => $e->getMessage()]);
+        }
+    }
+
     public function find($data = [])
     {
         $filter = $data && isset($data['filter']) ? $data['filter'] : [];
@@ -62,6 +79,7 @@ class UsuariosController extends ControllerBase
     public function create($data)
     {
         try {
+            $data['id_conta'] = $_REQUEST['id_conta'];
             $this->validateRequiredFields($this->model, $data);
             $result = $this->model->insert($data);
 

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Controllers\UploadsController;
 use App\Models\BaseModel;
 
 use PDO;
@@ -40,6 +39,23 @@ class FornecedoresModel extends BaseModel
         }
 
         throw new \BadMethodCallException("Método {$method} não existe");
+    }
+
+    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
+    {
+        try {
+            $queryBuilder = new QueryBuilder($this->conn, "fornecedores");
+            $result = $queryBuilder->select("fornecedores.*")
+                ->multipleOrWhere([
+                    ["fornecedores.nome", "%$searchTerm%", 'LIKE'],
+                    ["fornecedores.documento", "%$searchTerm%", 'LIKE'],
+                ])->where("fornecedores.id_conta", $idConta)
+                ->limit($limit)->offset($offset)->execute();
+
+            return $result;
+        } catch (\PDOException $e) {
+            throw new \PDOException($e->getMessage());
+        }
     }
 
     public function findById($id)

@@ -164,6 +164,22 @@ abstract class BaseModel extends Connection
         $this->closeConnection();
     }
 
+    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
+    {
+        try {
+            $queryBuilder = new QueryBuilder($this->conn, $this->table);
+            $result = $queryBuilder->select("{$this->table}.*")
+                ->multipleOrWhere([
+                    ["{$this->table}.descricao", "%$searchTerm%", 'LIKE'],
+                ])->where("{$this->table}.id_conta", $idConta)
+                ->limit($limit)->offset($offset)->execute();
+
+            return $result;
+        } catch (\PDOException $e) {
+            throw new \PDOException($e->getMessage());
+        }
+    }
+
     abstract public function totalCount($filters = []);
     abstract public function findById($id);
     abstract public function find($filters = [], $limit = null, $offset = null, $order = []);

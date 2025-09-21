@@ -42,23 +42,23 @@ class ClientesModel extends BaseModel
         throw new \BadMethodCallException("Método {$method} não existe");
     }
 
-    public function search($searchTerm, $limit = 10, $offset = 0)
+    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
     {
         try {
-            $queryBuilder = new QueryBuilder($this->conn, "clientes");
+            $queryBuilder = new QueryBuilder($this->conn, "{$this->table}");
             $result = $queryBuilder->select("*")
                 ->multipleOrWhere([
-                    ["clientes.nome", "%$searchTerm%", 'LIKE'],
-                    ["clientes.razao_social", "%$searchTerm%", 'LIKE'],
-                    ["clientes.apelido", "%$searchTerm%", 'LIKE'],
-                    ["clientes.rg", "%$searchTerm%", 'LIKE'],
-                    ["clientes.rg", "%$searchTerm%", 'LIKE'],
-                    ["clientes.inscricao_estadual", "%$searchTerm%", 'LIKE'],
-                    ["clientes.email", "%$searchTerm%", 'LIKE'],
-                    ["clientes.telefone", "%$searchTerm%", 'LIKE'],
-                    ["clientes.celular", "%$searchTerm%", 'LIKE'],
-                    ["clientes.documento", "%$searchTerm%", 'LIKE']
-                ])->limit($limit)->offset($offset)->execute();
+                    ["{$this->table}.nome", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.razao_social", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.apelido", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.rg", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.inscricao_estadual", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.email", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.telefone", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.celular", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.documento", "%$searchTerm%", 'LIKE']
+                ])->where("{$this->table}.id_conta", $idConta)
+                ->limit($limit)->offset($offset)->execute();
 
             return $result;
         } catch (\PDOException $e) {

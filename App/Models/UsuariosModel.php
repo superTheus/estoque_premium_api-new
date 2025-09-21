@@ -42,6 +42,24 @@ class UsuariosModel extends BaseModel
         throw new \BadMethodCallException("Método {$method} não existe");
     }
 
+    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
+    {
+        try {
+            $queryBuilder = new QueryBuilder($this->conn, "usuarios");
+            $result = $queryBuilder->select("usuarios.*")
+                ->multipleOrWhere([
+                    ["usuarios.nome", "%$searchTerm%", 'LIKE'],
+                    ["usuarios.email", "%$searchTerm%", 'LIKE'],
+                    ["usuarios.login", "%$searchTerm%", 'LIKE'],
+                ])->where("usuarios.id_conta", $idConta)
+                ->limit($limit)->offset($offset)->execute();
+
+            return $result;
+        } catch (\PDOException $e) {
+            throw new \PDOException($e->getMessage());
+        }
+    }
+
     public function findById($id)
     {
         $sql = "SELECT * FROM {$this->table} WHERE id = :id";
@@ -159,7 +177,6 @@ class UsuariosModel extends BaseModel
     public function insert($data)
     {
         try {
-
             if (isset($data['foto']) && $data['foto']) {
                 $uploadsController = new UploadsController();
                 $data['foto'] = $uploadsController->uploadFile($data['foto'], "user");
