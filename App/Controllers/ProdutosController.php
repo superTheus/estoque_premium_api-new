@@ -22,7 +22,7 @@ class ProdutosController extends ControllerBase
                 throw new \Exception("O termo de busca é obrigatório");
             }
 
-            $produtos = $this->model->search($data['searchTerm'], $_REQUEST['id_conta'], $data['limit'] ?? 10, $data['offset'] ?? 0);
+            $produtos = $this->model->search($data['searchTerm'], $_REQUEST['id_conta'], isset($data['id_empresa']) ? $data['id_empresa'] : null, $data['limit'] ?? 10, $data['offset'] ?? 0);
 
             foreach ($produtos as $key => $item) {
                 $marcasController = new MarcasController($item['id_marca']);
@@ -44,11 +44,17 @@ class ProdutosController extends ControllerBase
                     ]
                 ]) ?? [];
 
+                $filter = [
+                    "id_produto" => $item['id'],
+                ];
+
+                if (isset($data['id_empresa']) && !empty($data['id_empresa'])) {
+                    $filter['id_empresa'] = $data['id_empresa'];
+                }
+
                 $produtosEstoqueController = new ProdutosEstoqueController();
                 $item['produtos_estoque'] = $produtosEstoqueController->findOnly([
-                    "filter" => [
-                        "id_produto" => $item['id']
-                    ]
+                    "filter" => $filter
                 ]) ?? [];
 
                 $produtos[$key] = $item;

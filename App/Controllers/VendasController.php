@@ -90,11 +90,11 @@ class VendasController extends ControllerBase
                         foreach ($delete as $item) {
                             $model = new $relation['model']();
                             $model->__set($relation['foreign_key'], $currentData['id']);
-                            $model->__set($relation['key'], $item['id']);
+                            $model->__set($relation['key'], $item[$relation['key']]);
 
                             $currentDataItem = $model->find([
                                 $relation['foreign_key'] => $currentData['id'],
-                                $relation['key'] => $item['id']
+                                $relation['key'] => $item[$relation['key']]
                             ])[0] ?? null;
 
                             $model = new $relation['model']($currentDataItem['id']);
