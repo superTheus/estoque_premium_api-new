@@ -58,7 +58,7 @@ class ContasUsuariosModel extends BaseModel
     {
         try {
             $queryBuilder = new QueryBuilder($this->conn, $this->table);
-            $result = $queryBuilder->select("{$this->table}.*")
+            $result = $queryBuilder->select("DISTINCT {$this->table}.*")
                 ->leftJoin("empresas", "empresas.id_conta = {$this->table}.id")
                 ->leftJoin("usuarios", "usuarios.id_conta = {$this->table}.id")
                 ->multipleOrWhere([
