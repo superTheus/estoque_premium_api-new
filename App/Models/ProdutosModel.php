@@ -75,7 +75,7 @@ class ProdutosModel extends BaseModel
         throw new \BadMethodCallException("Método {$method} não existe");
     }
 
-    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
+    public function search($searchTerm, $idConta, $idEmpresa = null, $limit = 10, $offset = 0)
     {
         try {
             $queryBuilder = new QueryBuilder($this->conn, "produtos");
@@ -84,15 +84,21 @@ class ProdutosModel extends BaseModel
                 ->leftJoin("categorias", "categorias.id = produtos.id_categoria")
                 ->leftJoin("subcategorias", "subcategorias.id = produtos.id_subcategoria")
                 ->leftJoin("fornecedores", "fornecedores.id = produtos.id_fornecedor")
+                ->leftJoin("produtos_estoque", "produtos_estoque.id_produto = produtos.id")
                 ->multipleOrWhere([
                     ["produtos.descricao", "%$searchTerm%", 'LIKE'],
                     ["produtos.ncm", "%$searchTerm%", 'LIKE'],
                     ["marcas.descricao", "%$searchTerm%", 'LIKE'],
                     ["categorias.descricao", "%$searchTerm%", 'LIKE'],
                     ["subcategorias.descricao", "%$searchTerm%", 'LIKE'],
-                    ["fornecedores.nome", "%$searchTerm%", 'LIKE']
-                ])->where("produtos.id_conta", $idConta)
-                  ->limit($limit)->offset($offset)->execute();
+                    ["fornecedores.nome", "%$searchTerm%", 'LIKE'],
+                ])->where("produtos.id_conta", $idConta);
+                    
+            if ($idEmpresa !== null) {
+                $queryBuilder->where("produtos_estoque.id_empresa", $idEmpresa);
+            }
+
+            $result = $queryBuilder->limit($limit)->offset($offset)->execute();
 
             return $result;
         } catch (\PDOException $e) {

@@ -343,4 +343,22 @@ class VendasModel extends BaseModel
             throw new \Exception("Erro ao formatar dados: " . $e->getMessage());
         }
     }
+
+    public function verifyMinimum($relation)
+    {
+        try {
+            $tableRelation = (new $relation['model']())->getTableName();
+            $total = (new QueryBuilder($this->conn, $this->table))
+                ->select("COUNT(*) as total")
+                ->join($tableRelation, "{$this->table}.id = {$tableRelation}.{$relation['foreign_key']}")
+                ->where("{$this->table}.id", "{$this->attributes['id']}")
+                ->execute(false);
+
+            $total = $total[0]['total'] ?? 0;
+
+            return $total <= $relation['min_count'];
+        } catch (PDOException $e) {
+            throw new PDOException("Erro ao buscar dados para DataTable: " . $e->getMessage());
+        }
+    }
 }
