@@ -54,6 +54,31 @@ class ContasUsuariosModel extends BaseModel
         throw new \BadMethodCallException("Método {$method} não existe");
     }
 
+    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
+    {
+        try {
+            $queryBuilder = new QueryBuilder($this->conn, $this->table);
+            $result = $queryBuilder->select("{$this->table}.*")
+                ->leftJoin("empresas", "empresas.id_conta = {$this->table}.id")
+                ->leftJoin("usuarios", "usuarios.id_conta = {$this->table}.id")
+                ->multipleOrWhere([
+                    ["{$this->table}.responsavel", "%$searchTerm%", 'LIKE'],
+                    ["empresas.cnpj", "%$searchTerm%", 'LIKE'],
+                    ["empresas.cnpj", "%$searchTerm%", 'LIKE'],
+                    ["empresas.razao_social", "%$searchTerm%", 'LIKE'],
+                    ["empresas.nome_fantasia", "%$searchTerm%", 'LIKE'],
+                    ["empresas.inscricao_estadual", "%$searchTerm%", 'LIKE'],
+                    ["usuarios.nome", "%$searchTerm%", 'LIKE'],
+                    ["usuarios.email", "%$searchTerm%", 'LIKE'],
+                    ["usuarios.login", "%$searchTerm%", 'LIKE'],
+                ])->limit($limit)->offset($offset)->execute();
+
+            return $result;
+        } catch (\PDOException $e) {
+            throw new \PDOException($e->getMessage());
+        }
+    }
+
     public function findById($id)
     {
         $sql = "SELECT * FROM {$this->table} WHERE id = :id";

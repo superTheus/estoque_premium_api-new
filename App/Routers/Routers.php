@@ -452,6 +452,12 @@ class Routers
 
         $router->mount('/root', function () use ($router) {
             $router->mount('/contas-usuarios', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $contaUsuarioController = new ContasUsuariosController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $contaUsuarioController->search($data);
+                });
+
                 $router->post('/criar', function () {
                     $contaUsuarioController = new ContasUsuariosController();
                     $data = json_decode(file_get_contents('php://input'), true);

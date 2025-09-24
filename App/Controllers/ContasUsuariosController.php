@@ -15,6 +15,41 @@ class ContasUsuariosController extends ControllerBase
     $this->model = new ContasUsuariosModel($id ? $id : null);
   }
 
+  public function search($data)
+  {
+    try {
+      if (!isset($data['searchTerm']) || empty($data['searchTerm'])) {
+        throw new \Exception("O termo de busca é obrigatório");
+      }
+
+      $produtos = $this->model->search($data['searchTerm'], null, $data['limit'] ?? 10, $data['offset'] ?? 0);
+
+      foreach ($produtos as $key => $item) {
+        $empresasController = new EmpresasController();
+        $item['empresas'] = $empresasController->findOnly([
+          "filter" => [
+            "id_conta" => $item['id']
+          ]
+        ]);
+
+        $usuariosController = new UsuariosController();
+        $item['usuarios'] = $usuariosController->findOnly([
+          "filter" => [
+            "id_conta" => $item['id']
+          ]
+        ]);
+
+        $produtos[$key] = $item;
+      }
+
+      http_response_code(200);
+      echo json_encode($produtos);
+    } catch (\Exception $e) {
+      http_response_code(500);
+      echo json_encode(["message" => $e->getMessage()]);
+    }
+  }
+
   public function findOnly($data = [])
   {
     try {
