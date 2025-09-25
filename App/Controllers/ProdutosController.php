@@ -140,34 +140,14 @@ class ProdutosController extends ControllerBase
                         $create = $data[$relation['property']]['create'] ?? [];
                         $update = $data[$relation['property']]['update'] ?? [];
 
-                        foreach ($create as $item) {
-                            $model = new $relation['model']();
-                            $this->validateRequiredFields($model, $item, [$relation['foreign_key']]);
-                            $item[$relation['foreign_key']] = $currentData['id'];
-                            $model->insert($item);
-                        }
-
-                        foreach ($update as $item) {
-                            $model = new $relation['model']($item['id']);
-                            $currentDataItem = $model->current();
-                            if (!$currentDataItem) {
-                                throw new \Exception("Item com ID {$item['id']} não foi encontrado em relação {$relation['property']}");
-                            }
-                            if ($currentDataItem[$relation['foreign_key']] !== $currentData['id']) {
-                                throw new \Exception("Item com ID {$item['id']} não pertence ao cliente atual");
-                            }
-                            $this->validateUpdateFields($model, $item, $currentDataItem);
-                            $model->update($item);
-                        }
-
                         foreach ($delete as $item) {
                             $model = new $relation['model']();
                             $model->__set($relation['foreign_key'], $currentData['id']);
-                            $model->__set($relation['key'], $item['id']);
+                            $model->__set($relation['key'], $item[$relation['key']]);
 
                             $currentDataItem = $model->find([
                                 $relation['foreign_key'] => $currentData['id'],
-                                $relation['key'] => $item['id']
+                                $relation['key'] => $item[$relation['key']]
                             ])[0] ?? null;
 
                             $model = new $relation['model']($currentDataItem['id']);
@@ -185,6 +165,27 @@ class ProdutosController extends ControllerBase
                             } else {
                                 $model->delete();
                             }
+                        }
+
+                        foreach ($create as $item) {
+                            $model = new $relation['model']();
+                            $this->validateRequiredFields($model, $item, [$relation['foreign_key']]);
+                            $item[$relation['foreign_key']] = $currentData['id'];
+                            
+                            $result = $model->insert($item);
+                        }
+
+                        foreach ($update as $item) {
+                            $model = new $relation['model']($item['id']);
+                            $currentDataItem = $model->current();
+                            if (!$currentDataItem) {
+                                throw new \Exception("Item com ID {$item['id']} não foi encontrado em relação {$relation['property']}");
+                            }
+                            if ($currentDataItem[$relation['foreign_key']] !== $currentData['id']) {
+                                throw new \Exception("Item com ID {$item['id']} não pertence ao cliente atual");
+                            }
+                            $this->validateUpdateFields($model, $item, $currentDataItem);
+                            $model->update($item);
                         }
                     }
                 }

@@ -31,6 +31,7 @@ class ProdutosModel extends BaseModel
                 'model' => ProdutosImagensModel::class,
                 'min_count' => 0,
                 'foreign_key' => 'id_produto',
+                'key' => 'id'
             ],
             [
                 'property' => 'produtos_kit',
@@ -79,7 +80,7 @@ class ProdutosModel extends BaseModel
     {
         try {
             $queryBuilder = new QueryBuilder($this->conn, "produtos");
-            $result = $queryBuilder->select("produtos.*")
+            $result = $queryBuilder->select("DISTINCT produtos.*")
                 ->leftJoin("marcas", "marcas.id = produtos.id_marca")
                 ->leftJoin("categorias", "categorias.id = produtos.id_categoria")
                 ->leftJoin("subcategorias", "subcategorias.id = produtos.id_subcategoria")
@@ -387,6 +388,24 @@ class ProdutosModel extends BaseModel
             return $formattedRecords;
         } catch (\Exception $e) {
             throw new \Exception("Erro ao formatar dados: " . $e->getMessage());
+        }
+    }
+
+    public function verifyMinimum($relation)
+    {
+        try {
+            $tableRelation = (new $relation['model']())->getTableName();
+            $total = (new QueryBuilder($this->conn, $this->table))
+                ->select("COUNT(*) as total")
+                ->join($tableRelation, "{$this->table}.id = {$tableRelation}.{$relation['foreign_key']}")
+                ->where("{$this->table}.id", "{$this->attributes['id']}")
+                ->execute(false);
+
+            $total = $total[0]['total'] ?? 0;
+
+            return $total <= $relation['min_count'];
+        } catch (PDOException $e) {
+            throw new PDOException("Erro ao buscar dados para DataTable: " . $e->getMessage());
         }
     }
 }
