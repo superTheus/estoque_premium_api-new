@@ -147,6 +147,12 @@ abstract class BaseModel extends Connection
             "model" => FormasPagamentoModel::class,
             "controller" => Controllers\FormasPagamentoController::class,
         ],
+        [
+            "property" => "tipos_pagamento",
+            "table" => "tipos_pagamento",
+            "model" => TiposPagamentoModel::class,
+            "controller" => Controllers\TiposPagamentoController::class,
+        ],
     ];
 
     public function __construct($id = null)

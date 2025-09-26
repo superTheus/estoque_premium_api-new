@@ -7,12 +7,14 @@ use App\Controllers\ClientesController;
 use App\Controllers\ContasUsuariosController;
 use App\Controllers\EmpresasController;
 use App\Controllers\FiscalController;
+use App\Controllers\FormasPagamentoController;
 use App\Controllers\FornecedoresController;
 use App\Controllers\MarcasController;
 use App\Controllers\OperacoesController;
 use App\Controllers\ProdutosController;
 use App\Controllers\RegrasFiscalController;
 use App\Controllers\SubcategoriasController;
+use App\Controllers\TiposPagamentoController;
 use App\Controllers\UsuariosController;
 use App\Controllers\VendasController;
 use App\Middlewares\AuthMiddleware;
@@ -312,6 +314,32 @@ class Routers
                 });
             });
 
+            $router->mount('/formas-pagamento', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $formasPagamentoController = new FormasPagamentoController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $formasPagamentoController->search($data);
+                });
+
+                $router->post('/criar', function () {
+                    $formasPagamentoController = new FormasPagamentoController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $formasPagamentoController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $formasPagamentoController = new FormasPagamentoController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $formasPagamentoController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $formasPagamentoController = new FormasPagamentoController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $formasPagamentoController->update($data);
+                });
+            });
+
             $router->mount('/vendas', function () use ($router) {
                 $router->post('/criar', function () {
                     $vendasController = new VendasController();
@@ -377,6 +405,12 @@ class Routers
                     $fiscalController = new FiscalController();
                     $data = json_decode(file_get_contents('php://input'), true);
                     $fiscalController->listFormas($data);
+                });
+
+                $router->post('/tipos-pagamento', function () {
+                    $tiposPagamentoController = new TiposPagamentoController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $tiposPagamentoController->find($data);
                 });
 
                 $router->post('/unidades', function () {
