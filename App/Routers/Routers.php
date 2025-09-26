@@ -4,6 +4,7 @@ namespace App\Routers;
 
 use App\Controllers\CategoriasController;
 use App\Controllers\ClientesController;
+use App\Controllers\ContasController;
 use App\Controllers\ContasUsuariosController;
 use App\Controllers\EmpresasController;
 use App\Controllers\FiscalController;
@@ -16,6 +17,7 @@ use App\Controllers\RegrasFiscalController;
 use App\Controllers\SubcategoriasController;
 use App\Controllers\TiposPagamentoController;
 use App\Controllers\UsuariosController;
+use App\Controllers\VendaPagamentosController;
 use App\Controllers\VendasController;
 use App\Middlewares\AuthMiddleware;
 use Bramus\Router\Router;
@@ -357,6 +359,46 @@ class Routers
                     $vendasController = new VendasController($id);
                     $data = json_decode(file_get_contents('php://input'), true);
                     $vendasController->update($data);
+                });
+
+                $router->mount('/pagamentos', function () use ($router) {
+                    $router->post('/criar', function () {
+                        $vendaPagamentoController = new VendaPagamentosController();
+                        $data = json_decode(file_get_contents('php://input'), true);
+                        $vendaPagamentoController->create($data);
+                    });
+
+                    $router->post('/listar', function () {
+                        $vendaPagamentoController = new VendaPagamentosController();
+                        $data = json_decode(file_get_contents('php://input'), true);
+                        $vendaPagamentoController->find($data);
+                    });
+
+                    $router->put('/atualizar/{id}', function ($id) {
+                        $vendaPagamentoController = new VendaPagamentosController($id);
+                        $data = json_decode(file_get_contents('php://input'), true);
+                        $vendaPagamentoController->update($data);
+                    });
+                });
+            });
+
+            $router->mount('/contas', function () use ($router) {
+                $router->post('/criar', function () {
+                    $contasController = new ContasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $contasController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $contasController = new ContasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $contasController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $contasController = new ContasController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $contasController->update($data);
                 });
             });
 

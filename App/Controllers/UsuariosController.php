@@ -220,7 +220,7 @@ class UsuariosController extends ControllerBase
                 $token = [
                     "erro" => false,
                     "iat" => time(),
-                    "exp" => time() + 4200,
+                    "exp" => time() + 2592000,
                     "data" => [
                         "id" => $user['id'],
                         "id_conta" => $user['id_conta'],
