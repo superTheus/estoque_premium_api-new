@@ -379,6 +379,12 @@ class Routers
                         $data = json_decode(file_get_contents('php://input'), true);
                         $vendaPagamentoController->update($data);
                     });
+
+                    $router->delete('/deletar/{id}', function ($id) {
+                        $vendaPagamentoController = new VendaPagamentosController($id);
+                        $data = json_decode(file_get_contents('php://input'), true);
+                        $vendaPagamentoController->delete();
+                    });
                 });
             });
 

@@ -148,10 +148,17 @@ class VendaPagamentosController extends ControllerBase
         }
     }
 
-    public function delete(int $id)
+    public function delete()
     {
         try {
-            $result = $this->model->delete($id);
+            $current = $this->model->current();
+            if (!$current) {
+                http_response_code(404);
+                echo json_encode(["message" => "Registro não encontrado"]);
+                return;
+            }
+            
+            $result = $this->model->delete();
 
             http_response_code(200);
             echo json_encode($result);
