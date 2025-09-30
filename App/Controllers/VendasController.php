@@ -190,58 +190,34 @@ class VendasController extends ControllerBase
                                 }
                             }
                         }
+                    }
 
-                        $formasPagamento = $formasPagamentoController->findOnly([
-                            'filter' => ['id_venda' => $currentData['id']]
-                        ]);
+                    $formasPagamento = $formasPagamentoController->findOnly([
+                        'filter' => ['id_venda' => $currentData['id']]
+                    ]);
 
-                        foreach ($formasPagamento as $pagamento) {
-                            $forma = $formaPagamentoController->findOnly([
-                                'filter' => ['id' => $pagamento['id_forma']],
-                                "includes" => [
-                                    "tipos_pagamento" => true
-                                ]
-                            ])[0] ?? null;
+                    foreach ($formasPagamento as $pagamento) {
+                        $forma = $formaPagamentoController->findOnly([
+                            'filter' => ['id' => $pagamento['id_forma']],
+                            "includes" => [
+                                "tipos_pagamento" => true
+                            ]
+                        ])[0] ?? null;
 
-                            if($forma['condicao'] === 'A' && $pagamento['parcelar'] === 0) {
-                                $conta = [
-                                    "id_conta" => $currentData['id_conta'],
-                                    "id_empresa" => $currentData['id_empresa'],
-                                    "id_cliente" => $currentData['id_cliente'] ?? null,
-                                    "id_venda" => $currentData['id'],
-                                    "descricao" => "Recebimento de " . $forma['descricao'] . " da venda #" . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT),
-                                    "valor" => $pagamento['valor'],
-                                    "natureza" => 'R',
-                                    "vencimento" => date('Y-m-d'),
-                                    "data_pagamento" => $pagamento['data'],
-                                    "situacao" => 'PG'
-                                ];
+                        $conta = [
+                            "id_conta" => $currentData['id_conta'],
+                            "id_empresa" => $currentData['id_empresa'],
+                            "id_cliente" => $currentData['id_cliente'] ?? null,
+                            "id_venda" => $currentData['id'],
+                            "descricao" => "Recebimento de " . $forma['descricao'] . " da venda #" . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT),
+                            "valor" => $pagamento['valor'],
+                            "natureza" => 'R',
+                            "vencimento" => date('Y-m-d'),
+                            "data_pagamento" => $pagamento['data'],
+                            "situacao" => $pagamento['status']
+                        ];
 
-                                $contasController->createOnly($conta);
-                            } else if ($pagamento['parcelas'] > 0) {
-                                for ($i = 0; $i < $pagamento['parcelas']; $i++) {
-                                    $vencimento = date('Y-m-d', strtotime('+' . (($i + 1) * 30) . ' days'));
-
-                                    $conta = [
-                                        "id_conta" => $currentData['id_conta'],
-                                        "id_empresa" => $currentData['id_empresa'],
-                                        "id_cliente" => $currentData['id_cliente'] ?? null,
-                                        "id_venda" => $currentData['id'],
-                                        "condicao" => "P",
-                                        "descricao" => "Recebimento de " . $forma['descricao'] . " da venda #" . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT) . " - Parcela " . ($i + 1) . "/" . $pagamento['parcelas'],
-                                        "valor" => $pagamento['valor'],
-                                        "natureza" => 'R',
-                                        "vencimento" => $vencimento,
-                                        "parcelas" => $pagamento['parcelas'],
-                                        "num_parcela" => ($i + 1),
-                                        "valor_parcela" => $pagamento['valor_parcela'],
-                                        "situacao" => 'PE'
-                                    ];
-
-                                    $contasController->createOnly($conta);
-                                }
-                            }
-                        }
+                        $contasController->createOnly($conta);
                     }
                 }
 
