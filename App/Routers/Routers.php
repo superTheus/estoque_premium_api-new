@@ -14,6 +14,7 @@ use App\Controllers\MarcasController;
 use App\Controllers\OperacoesController;
 use App\Controllers\ProdutosController;
 use App\Controllers\RegrasFiscalController;
+use App\Controllers\ReportsController;
 use App\Controllers\SubcategoriasController;
 use App\Controllers\TiposPagamentoController;
 use App\Controllers\UsuariosController;
@@ -528,6 +529,19 @@ class Routers
                     $regrasFiscalController = new RegrasFiscalController($id);
                     $data = json_decode(file_get_contents('php://input'), true);
                     $regrasFiscalController->update($data);
+                });
+            });
+
+            $router->mount('/relatorios', function () use ($router) {
+                $router->post('/vendas', function () {
+                    $reportsController = new ReportsController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $reportsController->getSalesReports($data);
+                });
+                $router->post('/estoque', function () {
+                    $reportsController = new ReportsController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $reportsController->getEstoqueReports($data);
                 });
             });
         });
