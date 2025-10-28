@@ -103,10 +103,20 @@ class MercadoPagoController extends ControllerBase
             if (!isset($data['id_conta']) || empty($data['id_conta'])) {
                 throw new \Exception("O ID da conta é obrigatório");
             }
+            $contaController = new ContasUsuariosController();
+            $conta = $contaController->findOnly([
+                'filter' => ['id' => $data['id_conta']],
+                'limit' => 1,
+                'includes' => [
+                    'empresas' => true
+                ]
+            ]);
 
-            // Buscar a conta do usuário
-            $contasUsuariosModel = new ContasUsuariosModel($data['id_conta']);
-            $conta = $contasUsuariosModel->current();
+            if (count($conta) > 0) {
+                $conta = $conta[0];
+            } else {
+                $conta = null;
+            }
 
             if (empty($conta)) {
                 throw new \Exception("Conta não encontrada");
@@ -122,6 +132,8 @@ class MercadoPagoController extends ControllerBase
                 throw new \Exception("Valor mensal inválido");
             }
 
+            $empresa = $conta['empresas'][0];
+
             // Criar o pagamento PIX no Mercado Pago
             $client = new PaymentClient();
 
@@ -133,11 +145,11 @@ class MercadoPagoController extends ControllerBase
                     "email" => $conta['email'] ?? "pagamento@sistema.com",
                     "first_name" => $conta['responsavel'] ?? "Cliente",
                     "identification" => [
-                        "type" => "CPF",
-                        "number" => "00000000000"
+                        "type" => "CNPJ",
+                        "number" => $empresa['cnpj'] ?? "00000000000"
                     ]
                 ],
-                "notification_url" => $_ENV['URL_SISTEMA'] . "webhook/mercadopago"
+                "notification_url" => "https://estoqpremium.com.br/estoque_premium_api_new/webhook/receber"
             ];
 
             $payment = $client->create($paymentData);
@@ -193,32 +205,26 @@ class MercadoPagoController extends ControllerBase
     public function webhook()
     {
         try {
-            // Obter o corpo da requisição
             $input = file_get_contents('php://input');
             $data = json_decode($input, true);
 
-            // Log para debug (opcional)
             error_log("Webhook Mercado Pago: " . $input);
 
-            // Verificar se é uma notificação de pagamento
             if (!isset($data['type']) || $data['type'] !== 'payment') {
                 http_response_code(200);
                 echo json_encode(["message" => "Notificação ignorada"]);
                 return;
             }
 
-            // Obter o ID do pagamento
             $paymentId = $data['data']['id'] ?? null;
 
             if (!$paymentId) {
                 throw new \Exception("Payment ID não encontrado na notificação");
             }
 
-            // Buscar informações do pagamento na API do Mercado Pago
             $client = new PaymentClient();
             $payment = $client->get($paymentId);
 
-            // Buscar o registro do pagamento no banco de dados
             $pagamento = $this->model->findByPaymentId($paymentId);
 
             if (!$pagamento) {
@@ -228,14 +234,12 @@ class MercadoPagoController extends ControllerBase
                 return;
             }
 
-            // Atualizar o status do pagamento
             $modelInstance = new MercadoPagoModel($pagamento['id']);
             $modelInstance->update([
                 'status' => $payment->status,
                 'payment_data' => json_encode($payment)
             ]);
 
-            // Se o pagamento foi aprovado, atualizar a data de vencimento da conta
             if ($payment->status === 'approved') {
                 $this->atualizarVencimentoConta($pagamento['id_conta']);
             }
