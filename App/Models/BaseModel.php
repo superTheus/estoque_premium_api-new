@@ -153,6 +153,18 @@ abstract class BaseModel extends Connection
             "model" => TiposPagamentoModel::class,
             "controller" => Controllers\TiposPagamentoController::class,
         ],
+        [
+            "property" => "mercado_pago_pagamentos",
+            "table" => "mercado_pago_pagamentos",
+            "model" => MercadoPagoModel::class,
+            "controller" => Controllers\MercadoPagoController::class,
+        ],
+        [
+            "property" => "webhook_logs",
+            "table" => "webhook_logs",
+            "model" => WebhookLogsModel::class,
+            "controller" => Controllers\WebhookLogsController::class,
+        ],
     ];
 
     public function __construct($id = null)

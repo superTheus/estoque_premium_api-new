@@ -240,6 +240,7 @@ class UsuariosController extends ControllerBase
                     "tipo" => $user['tipo'],
                     "perfil" => $user['perfil'],
                     "token" => $user['token'],
+                    "conta" => $user['contas_usuarios'][0]
                 ]);
             } else {
                 http_response_code(401);

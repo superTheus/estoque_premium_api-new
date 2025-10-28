@@ -1,0 +1,156 @@
+# Integração Mercado Pago - PIX
+
+## Arquivos Criados
+
+### 1. Model
+- **Arquivo**: `App/Models/MercadoPagoModel.php`
+- **Tabela**: `mercado_pago_pagamentos`
+- **Responsabilidade**: Gerenciar dados de transações PIX
+
+### 2. Controller
+- **Arquivo**: `App/Controllers/MercadoPagoController.php`
+- **Métodos Principais**:
+  - `gerarPix()` - Cria pagamento PIX no Mercado Pago
+  - `webhook()` - Recebe notificações de pagamento
+  - `consultarPagamento()` - Consulta status de pagamento
+  - `atualizarVencimentoConta()` - Adiciona +1 mês no vencimento
+  - `find()`, `findOnly()`, `create()`, `update()` - Métodos CRUD padrão
+
+### 3. Rotas Implementadas
+
+#### Rotas Privadas (requer autenticação)
+- `POST /mercadopago/gerar-pix` - Gera QR Code PIX
+- `POST /mercadopago/consultar-pagamento` - Consulta status
+- `POST /mercadopago/listar-pagamentos` - Lista pagamentos
+
+#### Rota Pública
+- `POST /webhook/mercadopago` - Webhook do Mercado Pago
+
+### 4. Banco de Dados
+- **Arquivo SQL**: `database_mercadopago.sql`
+- Execute este arquivo para criar a tabela
+
+## Como Usar
+
+### 1. Criar Tabela
+```sql
+-- Execute o arquivo database_mercadopago.sql
+```
+
+### 2. Gerar Pagamento PIX
+```
+POST /mercadopago/gerar-pix
+Headers: Authorization: Bearer {token}
+Body: {
+  "id_conta": 1
+}
+```
+
+**Resposta**:
+```json
+{
+  "success": true,
+  "message": "PIX gerado com sucesso",
+  "data": {
+    "id": 1,
+    "payment_id": "123456789",
+    "status": "pending",
+    "valor": 150.00,
+    "qr_code": "00020126580014br.gov.bcb.pix...",
+    "qr_code_base64": "iVBORw0KGgoAAAANSUhEUgAA...",
+    "ticket_url": "https://mercadopago.com/...",
+    "expiration_date": "2025-10-28T23:59:59.000Z"
+  }
+}
+```
+
+### 3. Consultar Status
+```
+POST /mercadopago/consultar-pagamento
+Headers: Authorization: Bearer {token}
+Body: {
+  "id": 1
+}
+```
+
+### 4. Listar Pagamentos
+```
+POST /mercadopago/listar-pagamentos
+Headers: Authorization: Bearer {token}
+Body: {
+  "filter": {
+    "id_conta": 1
+  },
+  "limit": 10,
+  "offset": 0
+}
+```
+
+## Fluxo de Pagamento
+
+1. **Frontend chama** `POST /mercadopago/gerar-pix` com `id_conta`
+2. **Sistema**:
+   - Busca valor_mensal da conta
+   - Cria pagamento PIX no Mercado Pago
+   - Salva na tabela `mercado_pago_pagamentos`
+   - Retorna QR Code
+3. **Cliente paga** usando o QR Code
+4. **Mercado Pago notifica** via webhook `/webhook/mercadopago`
+5. **Sistema**:
+   - Atualiza status do pagamento
+   - Se aprovado: adiciona +1 mês no campo `vencimento` da conta
+   - Ativa a conta (status = 'A')
+
+## Estrutura da Tabela
+
+```sql
+mercado_pago_pagamentos
+├── id (PK)
+├── id_conta (FK -> contas_usuarios.id)
+├── payment_id (UNIQUE - ID Mercado Pago)
+├── status (pending, approved, rejected, etc)
+├── valor (DECIMAL)
+├── qr_code (TEXT)
+├── qr_code_base64 (LONGTEXT)
+├── ticket_url (VARCHAR)
+├── payment_data (LONGTEXT JSON)
+└── dthr_registro (TIMESTAMP)
+```
+
+## Configuração no BaseModel
+
+A tabela foi registrada em `App/Models/BaseModel.php`:
+```php
+[
+    "property" => "mercado_pago_pagamentos",
+    "table" => "mercado_pago_pagamentos",
+    "model" => MercadoPagoModel::class,
+    "controller" => Controllers\MercadoPagoController::class,
+]
+```
+
+## Variáveis de Ambiente (.env)
+
+```env
+MP_ACCESS_TOKEN=TEST-4191466147121771-102418-15ef9a7b6ab734262d1df79e1a685955-281869678
+URL_SISTEMA=http://projetos.local/estoque_premium_api-new/
+```
+
+**Observação**: Token atual é de teste. Para produção, substitua pelas credenciais reais do Mercado Pago.
+
+## Status de Pagamento
+
+- `pending` - Aguardando pagamento
+- `approved` - Pagamento aprovado ✅
+- `rejected` - Pagamento rejeitado
+- `cancelled` - Cancelado
+- `in_process` - Em processamento
+- `in_mediation` - Em mediação
+- `refunded` - Devolvido
+
+## Segurança
+
+- Rotas de geração e consulta protegidas por JWT
+- Webhook público (requerido pelo Mercado Pago)
+- Foreign key constraint garante integridade referencial
+- Logs de erro salvos no error_log do PHP
