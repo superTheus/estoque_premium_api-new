@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Models\ContasModel;
+use App\Models\VendaPagamentosModel;
 use App\Models\VendasModel;
 use Dotenv\Dotenv;
 
@@ -66,6 +68,112 @@ class VendasController extends ControllerBase
 
             http_response_code(200);
             echo json_encode($result);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(["message" => $e->getMessage()]);
+        }
+    }
+
+    public function duplicate($data)
+    {
+        try {
+            $data['id_conta'] = $_REQUEST['id_conta'];
+
+            if (!isset($data['venda']) || empty($data['venda'])) {
+                throw new \Exception("Venda a ser duplicada não foi informada.");
+            }
+
+            if (!isset($data['operacao']) || empty($data['operacao'])) {
+                throw new \Exception("Operação não foi informada.");
+            }
+
+            $operacao = new OperacoesController();
+            $operacaoData = $operacao->findOnly([
+                'filter' => ['id' => $data['operacao']]
+            ])[0] ?? null;
+
+            if (!$operacaoData) {
+                throw new \Exception("Operação informada não foi encontrada.");
+            }
+
+            $vendaController = new VendasController();
+            $vendaData = $vendaController->findOnly([
+                'filter' => ['id' => $data['venda']],
+                'includes' => [
+                    'venda_produtos' => true
+                ]
+            ])[0] ?? null;
+
+            if (!$vendaData) {
+                throw new \Exception("Venda informada não foi encontrada.");
+            }
+
+            $this->create([
+                "id_conta" => $vendaData['id_conta'],
+                "id_empresa" => $vendaData['id_empresa'],
+                "id_operacao" => $operacaoData['id'],
+                "id_cliente" => $vendaData['id_cliente'],
+                "id_vendedor" => $vendaData['id_vendedor'],
+                "total" => $vendaData['total'],
+                "total_pago" => $vendaData['total_pago'],
+                "total_desconto" => $vendaData['total_desconto'],
+                "total_troco" => $vendaData['total_troco'],
+                "status" => 'AB',
+                "observacao_nota" => $vendaData['observacao_nota'],
+                "venda_produtos" => $vendaData['venda_produtos'],
+            ]);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(["message" => $e->getMessage()]);
+        }
+    }
+
+    public function reopen($data)
+    {
+        try {
+            if (!isset($data['venda']) || empty($data['venda'])) {
+                throw new \Exception("Venda a ser aberta não foi informada.");
+            }
+
+            $vendaController = new VendasController();
+            $vendaData = $vendaController->findOnly([
+                'filter' => ['id' => $data['venda']],
+                'includes' => [
+                    'venda_produtos' => true,
+                    'venda_pagamentos' => true,
+                    'contas' => true
+                ]
+            ])[0] ?? null;
+
+            if (!$vendaData) {
+                throw new \Exception("Venda informada não foi encontrada.");
+            }
+
+            if($vendaData['status'] !== 'FE') {
+                throw new \Exception("Apenas vendas finalizadas podem ser reabertas.");
+            }
+
+            if ($vendaData['contas']) {
+                foreach ($vendaData['contas'] as $conta) {
+                    $contaModel = new ContasModel($conta['id']);
+                    $contaModel->delete();
+                }
+            }
+
+            if ($vendaData['venda_pagamentos']) {
+                foreach ($vendaData['venda_pagamentos'] as $pagamento) {
+                    $vendasModel = new VendaPagamentosModel($pagamento['id']);
+                    $vendasModel->delete();
+                }
+            }
+
+            $vendaController = new VendasController($vendaData['id']);
+            $vendaController->update([
+                "status" => 'AB',
+                "total_pago" => 0,
+                "total_desconto" => 0,
+                "total_troco" => 0
+            ]);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(["message" => $e->getMessage()]);

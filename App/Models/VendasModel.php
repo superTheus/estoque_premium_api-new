@@ -31,6 +31,13 @@ class VendasModel extends BaseModel
                 'min_count' => 0,
                 'foreign_key' => 'id_venda',
                 'key' => 'id_forma'
+            ],
+            [
+                'property' => 'contas',
+                'table' => 'contas',
+                'model' => ContasModel::class,
+                'min_count' => 0,
+                'foreign_key' => 'id_venda',
             ]
         ];
         parent::__construct($id);

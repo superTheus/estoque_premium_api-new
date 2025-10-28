@@ -349,6 +349,18 @@ class Routers
                     $vendasController->create($data);
                 });
 
+                $router->post('/duplicar', function () {
+                    $vendasController = new VendasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendasController->duplicate($data);
+                });
+
+                $router->post('/reabrir', function () {
+                    $vendasController = new VendasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendasController->reopen($data);
+                });
+
                 $router->post('/listar', function () {
                     $vendasController = new VendasController();
                     $data = json_decode(file_get_contents('php://input'), true);
