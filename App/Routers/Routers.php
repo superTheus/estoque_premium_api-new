@@ -11,6 +11,7 @@ use App\Controllers\FiscalController;
 use App\Controllers\FormasPagamentoController;
 use App\Controllers\FornecedoresController;
 use App\Controllers\MarcasController;
+use App\Controllers\MercadoPagoController;
 use App\Controllers\OperacoesController;
 use App\Controllers\ProdutosController;
 use App\Controllers\RegrasFiscalController;
@@ -20,6 +21,7 @@ use App\Controllers\TiposPagamentoController;
 use App\Controllers\UsuariosController;
 use App\Controllers\VendaPagamentosController;
 use App\Controllers\VendasController;
+use App\Controllers\WebhookLogsController;
 use App\Middlewares\AuthMiddleware;
 use Bramus\Router\Router;
 
@@ -544,6 +546,30 @@ class Routers
                     $reportsController->getEstoqueReports($data);
                 });
             });
+
+            // Rotas do Mercado Pago
+            $router->mount('/mercadopago', function () use ($router) {
+                // Gerar PIX - Rota privada
+                $router->post('/gerar-pix', function () {
+                    $mercadoPagoController = new MercadoPagoController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $mercadoPagoController->gerarPix($data);
+                });
+
+                // Consultar status de pagamento - Rota privada
+                $router->post('/consultar-pagamento', function () {
+                    $mercadoPagoController = new MercadoPagoController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $mercadoPagoController->consultarPagamento($data);
+                });
+
+                // Listar pagamentos - Rota privada
+                $router->post('/listar-pagamentos', function () {
+                    $mercadoPagoController = new MercadoPagoController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $mercadoPagoController->find($data);
+                });
+            });
         });
 
         $router->mount('/root', function () use ($router) {
@@ -589,6 +615,18 @@ class Routers
         $router->get('/files/{filename}', function ($filename) {
             $uploadsController = new \App\Controllers\UploadsController();
             $uploadsController->getFile($filename);
+        });
+
+        // Webhook do Mercado Pago (rota pública)
+        $router->post('/webhook/mercadopago', function () {
+            $mercadoPagoController = new MercadoPagoController();
+            $mercadoPagoController->webhook();
+        });
+
+        // Webhook genérico - recebe qualquer body e salva
+        $router->post('/webhook/receber', function () {
+            $webhookLogsController = new WebhookLogsController();
+            $webhookLogsController->receberWebhook('generico');
         });
 
         $router->set404(function () {
