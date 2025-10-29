@@ -149,7 +149,7 @@ class MercadoPagoController extends ControllerBase
                         "number" => $empresa['cnpj'] ?? "00000000000"
                     ]
                 ],
-                "notification_url" => "https://estoqpremium.com.br/estoque_premium_api_new/webhook/receber"
+                "notification_url" => $_ENV['URL_WEBHOOKS']
             ];
 
             $payment = $client->create($paymentData);
@@ -184,13 +184,24 @@ class MercadoPagoController extends ControllerBase
                 ]
             ]);
         } catch (MPApiException $e) {
+            $apiResponse = $e->getApiResponse();
+            $content = $apiResponse ? $apiResponse->getContent() : null;
+            
+            error_log("Erro MPApiException PIX: " . json_encode([
+                'message' => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'content' => $content
+            ]));
+            
             http_response_code(500);
             echo json_encode([
                 "success" => false,
                 "message" => "Erro na API do Mercado Pago: " . $e->getMessage(),
-                "api_response" => $e->getApiResponse()
+                "status_code" => $e->getStatusCode(),
+                "details" => $content
             ]);
         } catch (\Exception $e) {
+            error_log("Erro Exception PIX: " . $e->getMessage());
             http_response_code(500);
             echo json_encode([
                 "success" => false,
@@ -344,6 +355,136 @@ class MercadoPagoController extends ControllerBase
                 ]
             ]);
         } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                "success" => false,
+                "message" => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Gera um pagamento via Boleto para uma conta de usuário
+     * Recebe: { "id_conta": 123 }
+     */
+    public function gerarBoleto($data)
+    {
+        try {
+            if (!isset($data['id_conta']) || empty($data['id_conta'])) {
+                throw new \Exception("O ID da conta é obrigatório");
+            }
+
+            $contaController = new ContasUsuariosController();
+            $conta = $contaController->findOnly([
+                'filter' => ['id' => $data['id_conta']],
+                'limit' => 1,
+                'includes' => [
+                    'empresas' => true
+                ]
+            ]);
+
+            if (count($conta) > 0) {
+                $conta = $conta[0];
+            } else {
+                $conta = null;
+            }
+
+            if (empty($conta)) {
+                throw new \Exception("Conta não encontrada");
+            }
+
+            if (!isset($conta['valor_mensal']) || empty($conta['valor_mensal'])) {
+                throw new \Exception("Valor mensal não definido para esta conta");
+            }
+
+            $valorMensal = floatval($conta['valor_mensal']);
+
+            if ($valorMensal <= 0) {
+                throw new \Exception("Valor mensal inválido");
+            }
+
+            $empresa = $conta['empresas'][0];
+
+            // Criar o pagamento Boleto no Mercado Pago
+            $client = new PaymentClient();
+
+            // Data de vencimento do boleto (7 dias a partir de hoje)
+            $dataVencimento = date('Y-m-d', strtotime('+7 days'));
+
+            $paymentData = [
+                "transaction_amount" => $valorMensal,
+                "description" => "Assinatura mensal - " . ($conta['responsavel'] ?? 'Sistema'),
+                "payment_method_id" => "bolbradesco", // Boleto Bradesco
+                "payer" => [
+                    "email" => $conta['email'] ?? "pagamento@sistema.com",
+                    "first_name" => $conta['responsavel'] ?? "Cliente",
+                    "identification" => [
+                        "type" => "CNPJ",
+                        "number" => $empresa['cnpj'] ?? "00000000000"
+                    ],
+                    "address" => [
+                        "zip_code" => $empresa['cep'] ?? "",
+                        "street_name" => $empresa['logradouro'] ?? "",
+                        "street_number" => $empresa['numero'] ?? "S/N",
+                        "neighborhood" => $empresa['bairro'] ?? "",
+                        "city" => $empresa['cidade'] ?? "",
+                        "federal_unit" => $empresa['uf'] ?? ""
+                    ]
+                ],
+                "date_of_expiration" => $dataVencimento . "T23:59:59.000-04:00",
+                "notification_url" => $_ENV['URL_WEBHOOKS']
+            ];
+
+            $payment = $client->create($paymentData);
+
+            // Salvar o pagamento no banco de dados
+            $pagamentoData = [
+                'id_conta' => $data['id_conta'],
+                'payment_id' => $payment->id,
+                'status' => $payment->status,
+                'valor' => $valorMensal,
+                'qr_code' => null,
+                'qr_code_base64' => null,
+                'ticket_url' => $payment->transaction_details->external_resource_url ?? null,
+                'payment_data' => json_encode($payment)
+            ];
+
+            $resultado = $this->model->insert($pagamentoData);
+
+            http_response_code(200);
+            echo json_encode([
+                "success" => true,
+                "message" => "Boleto gerado com sucesso",
+                "data" => [
+                    "id" => $resultado['id'],
+                    "payment_id" => $payment->id,
+                    "status" => $payment->status,
+                    "valor" => $valorMensal,
+                    "boleto_url" => $payment->transaction_details->external_resource_url ?? null,
+                    "barcode" => $payment->barcode->content ?? null,
+                    "data_vencimento" => $dataVencimento,
+                    "expiration_date" => $payment->date_of_expiration ?? null
+                ]
+            ]);
+        } catch (MPApiException $e) {
+            $apiResponse = $e->getApiResponse();
+            $content = $apiResponse ? $apiResponse->getContent() : null;
+            
+            error_log("Erro MPApiException Boleto: " . json_encode([
+                'message' => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'content' => $content
+            ]));
+            
+            http_response_code(500);
+            echo json_encode([
+                "success" => false,
+                "message" => "Erro na API do Mercado Pago: " . $e->getMessage(),
+                "status_code" => $e->getStatusCode(),
+                "details" => $content
+            ]);
+        } catch (\Exception $e) {
+            error_log("Erro Exception Boleto: " . $e->getMessage());
             http_response_code(500);
             echo json_encode([
                 "success" => false,

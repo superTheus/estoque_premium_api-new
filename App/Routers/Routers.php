@@ -568,6 +568,13 @@ class Routers
                     $mercadoPagoController->gerarPix($data);
                 });
 
+                // Gerar Boleto - Rota privada
+                $router->post('/gerar-boleto', function () {
+                    $mercadoPagoController = new MercadoPagoController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $mercadoPagoController->gerarBoleto($data);
+                });
+
                 // Consultar status de pagamento - Rota privada
                 $router->post('/consultar-pagamento', function () {
                     $mercadoPagoController = new MercadoPagoController();
