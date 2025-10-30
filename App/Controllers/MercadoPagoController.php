@@ -325,35 +325,8 @@ class MercadoPagoController extends ControllerBase
 
             $pagamento = $pagamento[0];
 
-            // Consultar o status atualizado na API do Mercado Pago
-            $client = new PaymentClient();
-            $payment = $client->get($pagamento['payment_id']);
-
-            // Atualizar o status no banco de dados
-            $modelInstance = new MercadoPagoModel($pagamento['id']);
-            $modelInstance->update([
-                'status' => $payment->status,
-                'payment_data' => json_encode($payment)
-            ]);
-
-            // Se foi aprovado e ainda não foi processado, atualizar a conta
-            if ($payment->status === 'approved' && $pagamento['status'] !== 'approved') {
-                $this->atualizarVencimentoConta($pagamento['id_conta']);
-            }
-
             http_response_code(200);
-            echo json_encode([
-                "success" => true,
-                "data" => [
-                    "id" => $pagamento['id'],
-                    "payment_id" => $pagamento['payment_id'],
-                    "status" => $payment->status,
-                    "status_detail" => $payment->status_detail ?? null,
-                    "valor" => $pagamento['valor'],
-                    "qr_code" => $pagamento['qr_code'],
-                    "qr_code_base64" => $pagamento['qr_code_base64']
-                ]
-            ]);
+            echo json_encode($pagamento);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode([
