@@ -518,6 +518,11 @@ class Routers
                     $data = json_decode(file_get_contents('php://input'), true);
                     $fiscalController->testarCertificado($data);
                 });
+
+                $router->get('/testar/{cnpj}', function ($cnpj) {
+                    $fiscalController = new FiscalController();
+                    $fiscalController->testarCertificadoPorCnpj($cnpj);
+                });
             });
 
             $router->mount('/regras-fiscais', function () use ($router) {
@@ -646,6 +651,32 @@ class Routers
         $router->post('/webhook/receber', function () {
             $webhookLogsController = new WebhookLogsController();
             $webhookLogsController->receberWebhook('generico');
+        });
+
+        // Webhook genérico - recebe qualquer body e salva
+        $router->get('/test', function () {
+            error_reporting(E_ALL);
+            ini_set('display_errors', 1);
+
+            $token = 'APP_USR-4191466147121771-102418-b8ba24693ad09ddac43dc56292667f9c-281869678';
+            $id    = '131911635158';
+
+            $ch = curl_init("https://api.mercadopago.com/v1/payments/$id");
+            curl_setopt_array($ch, [
+                CURLOPT_HTTPHEADER        => ["Authorization: Bearer $token", "Content-Type: application/json"],
+                CURLOPT_RETURNTRANSFER    => true,
+                CURLOPT_CONNECTTIMEOUT    => 5,   // evita “parecer travado”
+                CURLOPT_TIMEOUT           => 15,
+                CURLOPT_IPRESOLVE         => CURL_IPRESOLVE_V4, // evita problemas com IPv6
+                CURLOPT_SSL_VERIFYPEER    => true,              // mantenha true em produção
+            ]);
+            $res   = curl_exec($ch);
+            $errno = curl_errno($ch);
+            $error = curl_error($ch);
+            $info  = curl_getinfo($ch);
+            curl_close($ch);
+
+            echo json_encode(['errno' => $errno, 'error' => $error, 'http_code' => $info['http_code'] ?? null, 'primary_ip' => $info['primary_ip'] ?? null, 'ssl_info' => $info]);
         });
 
         $router->set404(function () {

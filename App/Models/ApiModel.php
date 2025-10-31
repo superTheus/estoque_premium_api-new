@@ -81,6 +81,15 @@ class ApiModel
     return $this->request('fiscal/certicate/test', 'POST', $data);
   }
 
+  public function testeCertificadoPorCnpj($cnpj)
+  {
+    if (empty($cnpj)) {
+      throw new \Exception("CNPJ não fornecido.");
+    }
+
+    return $this->request('fiscal/certicate/test/' . $cnpj, 'GET');
+  }
+
   public function listCompany($data = [])
   {
     return $this->request('company/list', 'POST', $data);
@@ -163,6 +172,6 @@ class ApiModel
 
   public function nfe($data)
   {
-    return $this->request('fiscal/nfe', 'POST', $data, true);
+    return $this->request('fiscal/nfe', 'POST', $data, false);
   }
 }

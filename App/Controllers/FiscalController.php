@@ -34,7 +34,11 @@ class FiscalController extends ApiModel
           "clientes" => true,
           "venda_pagamentos" => [
             "includes" => [
-              "formas_pagamento" => true
+              "formas_pagamento" => [
+                "includes" => [
+                  "tipos_pagamento" => true
+                ]
+              ]
             ]
           ],
           "venda_produtos" => [
@@ -87,7 +91,7 @@ class FiscalController extends ApiModel
 
       foreach ($pagamentos as $key => $pagamento) {
         $pagamentosNota[] = [
-          "codigo" => $pagamento["formas_pagamento"]['codigo_sefaz'],
+          "codigo" => $pagamento["formas_pagamento"]["tipos_pagamento"][0]['codigo_sefaz'],
           "valorpago" => $pagamento["valor"]
         ];
       }
@@ -128,8 +132,6 @@ class FiscalController extends ApiModel
         $notaEmitida = $this->nfe($dadosEmissao);
       }
 
-      die(json_encode($notaEmitida));
-
       $venda = $vendasController->updateOnly([
         "nota_emitida" => "S",
         "protocolo" => $notaEmitida['protocolo'],
@@ -145,7 +147,7 @@ class FiscalController extends ApiModel
     } catch (\Exception $e) {
       $errors = json_decode($e->getMessage(), true);
       $messagemErro = $errors['error'];
-      if(isset($errors['error_tags'])) {
+      if(isset($errors['error_tags']) && is_array($errors['error_tags']) && count($errors['error_tags']) > 0) {
         $messagemErro = 'Erros: ' . implode(', ', $errors['error_tags']);
       }
 
@@ -298,6 +300,16 @@ class FiscalController extends ApiModel
   {
     try {
       echo json_encode($this->testeCertificado($data));
+    } catch (\Exception $e) {
+      http_response_code(400);
+      echo json_encode($e->getMessage());
+    }
+  }
+
+  public function testarCertificadoPorCnpj($cnpj)
+  {
+    try {
+      echo json_encode($this->testeCertificadoPorCnpj($cnpj));
     } catch (\Exception $e) {
       http_response_code(400);
       echo json_encode($e->getMessage());

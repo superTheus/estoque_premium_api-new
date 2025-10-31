@@ -223,6 +223,7 @@ class MercadoPagoController extends ControllerBase
 
             if (!isset($data['type']) || $data['type'] !== 'payment') {
                 http_response_code(200);
+                error_log("Notificação ignorada");
                 echo json_encode(["message" => "Notificação ignorada"]);
                 return;
             }
@@ -230,11 +231,24 @@ class MercadoPagoController extends ControllerBase
             $paymentId = $data['data']['id'] ?? null;
 
             if (!$paymentId) {
+                error_log("Payment ID não encontrado na notificação");
                 throw new \Exception("Payment ID não encontrado na notificação");
             }
 
-            $client = new PaymentClient();
-            $payment = $client->get($paymentId);
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://api.mercadopago.com/v1/payments/' . $paymentId,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CUSTOMREQUEST => 'GET',
+                CURLOPT_HTTPHEADER => [
+                    'accept: application/json',
+                    'content-type: application/json',
+                    'Authorization: Bearer ' . $_ENV['MP_ACCESS_TOKEN']
+                ]
+            ]);
+
+            $response = curl_exec($curl);
+            $payment = json_decode($response, true);
 
             $pagamento = $this->model->findByPaymentId($paymentId);
 
@@ -247,11 +261,11 @@ class MercadoPagoController extends ControllerBase
 
             $modelInstance = new MercadoPagoModel($pagamento['id']);
             $modelInstance->update([
-                'status' => $payment->status,
+                'status' => $payment['status'],
                 'payment_data' => json_encode($payment)
             ]);
 
-            if ($payment->status === 'approved') {
+            if ($payment['status'] === 'approved') {
                 $this->atualizarVencimentoConta($pagamento['id_conta']);
             }
 

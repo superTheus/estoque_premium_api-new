@@ -214,7 +214,7 @@ class EmpresasController extends ControllerBase
     try {
       $currentData = $this->model->current();
       
-      if (isset($data['emite_nota']) && $data['emite_nota'] === 'S' && $currentData['emite_nota'] !== $data['emite_nota']) {
+      if (isset($data['emite_nota']) && $data['emite_nota'] === 'S') {
         if (!isset($data['inscricao_estadual'])) {
           $data['inscricao_estadual'] = $currentData['inscricao_estadual'];
         }
@@ -404,6 +404,7 @@ class EmpresasController extends ControllerBase
               "numero_nfe_homologacao" => $data['numero_nfe_homologacao'] ?? $company['numero_nfe_homologacao'],
               "crt" => $data['crt'] ?? $company['crt']
             ]);
+            
           } else {
             $fiscalController->createCompany([
               "cnpj" => preg_replace('/\D/', '', $data['cnpj']),

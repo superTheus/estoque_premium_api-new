@@ -1,16 +1,17 @@
-# Integração Mercado Pago - PIX
+# Integração Mercado Pago - PIX e Boleto
 
 ## Arquivos Criados
 
 ### 1. Model
 - **Arquivo**: `App/Models/MercadoPagoModel.php`
 - **Tabela**: `mercado_pago_pagamentos`
-- **Responsabilidade**: Gerenciar dados de transações PIX
+- **Responsabilidade**: Gerenciar dados de transações PIX e Boleto
 
 ### 2. Controller
 - **Arquivo**: `App/Controllers/MercadoPagoController.php`
 - **Métodos Principais**:
   - `gerarPix()` - Cria pagamento PIX no Mercado Pago
+  - `gerarBoleto()` - Cria pagamento via Boleto
   - `webhook()` - Recebe notificações de pagamento
   - `consultarPagamento()` - Consulta status de pagamento
   - `atualizarVencimentoConta()` - Adiciona +1 mês no vencimento
@@ -20,6 +21,7 @@
 
 #### Rotas Privadas (requer autenticação)
 - `POST /mercadopago/gerar-pix` - Gera QR Code PIX
+- `POST /mercadopago/gerar-boleto` - Gera Boleto bancário
 - `POST /mercadopago/consultar-pagamento` - Consulta status
 - `POST /mercadopago/listar-pagamentos` - Lista pagamentos
 
@@ -64,7 +66,51 @@ Body: {
 }
 ```
 
-### 3. Consultar Status
+### 3. Gerar Boleto Bancário
+```
+POST /mercadopago/gerar-boleto
+Headers: Authorization: Bearer {token}
+Body: {
+  "id_conta": 1,
+  "payer": {
+    "email": "cliente@email.com",
+    "first_name": "João",
+    "last_name": "Silva",
+    "identification": {
+      "type": "CPF",
+      "number": "12345678900"
+    },
+    "address": {
+      "zip_code": "01310100",
+      "street_name": "Av Paulista",
+      "street_number": "1000",
+      "neighborhood": "Bela Vista",
+      "city": "São Paulo",
+      "federal_unit": "SP"
+    }
+  }
+}
+```
+
+**Resposta**:
+```json
+{
+  "success": true,
+  "message": "Boleto gerado com sucesso",
+  "data": {
+    "id": 2,
+    "payment_id": "987654321",
+    "status": "pending",
+    "valor": 150.00,
+    "boleto_url": "https://www.mercadopago.com.br/payments/...",
+    "barcode": "34191.79001 01043.510047 91020.150008 1 82880000015000",
+    "data_vencimento": "2025-11-04",
+    "expiration_date": "2025-11-04T23:59:59.000-04:00"
+  }
+}
+```
+
+### 4. Consultar Status
 ```
 POST /mercadopago/consultar-pagamento
 Headers: Authorization: Bearer {token}
@@ -73,7 +119,7 @@ Body: {
 }
 ```
 
-### 4. Listar Pagamentos
+### 5. Listar Pagamentos
 ```
 POST /mercadopago/listar-pagamentos
 Headers: Authorization: Bearer {token}
@@ -88,6 +134,7 @@ Body: {
 
 ## Fluxo de Pagamento
 
+### PIX
 1. **Frontend chama** `POST /mercadopago/gerar-pix` com `id_conta`
 2. **Sistema**:
    - Busca valor_mensal da conta
@@ -95,6 +142,21 @@ Body: {
    - Salva na tabela `mercado_pago_pagamentos`
    - Retorna QR Code
 3. **Cliente paga** usando o QR Code
+4. **Mercado Pago notifica** via webhook `/webhook/mercadopago`
+5. **Sistema**:
+   - Atualiza status do pagamento
+   - Se aprovado: adiciona +1 mês no campo `vencimento` da conta
+   - Ativa a conta (status = 'A')
+
+### Boleto
+1. **Frontend chama** `POST /mercadopago/gerar-boleto` com `id_conta` e dados do pagador
+2. **Sistema**:
+   - Busca valor_mensal da conta
+   - Valida dados do pagador (nome, CPF/CNPJ, email)
+   - Cria boleto no Mercado Pago com vencimento em 7 dias
+   - Salva na tabela `mercado_pago_pagamentos`
+   - Retorna URL do boleto e código de barras
+3. **Cliente paga** o boleto no banco
 4. **Mercado Pago notifica** via webhook `/webhook/mercadopago`
 5. **Sistema**:
    - Atualiza status do pagamento
