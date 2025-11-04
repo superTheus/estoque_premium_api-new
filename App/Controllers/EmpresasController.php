@@ -292,7 +292,6 @@ class EmpresasController extends ControllerBase
         }
 
         if (
-          !isset($data['situacao_tributaria']) ||
           !isset($data['csc']) ||
           !isset($data['csc_id']) ||
           !isset($data['certificado']) ||

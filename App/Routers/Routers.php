@@ -564,30 +564,30 @@ class Routers
                 });
             });
 
-            // Rotas do Mercado Pago
             $router->mount('/mercadopago', function () use ($router) {
-                // Gerar PIX - Rota privada
                 $router->post('/gerar-pix', function () {
                     $mercadoPagoController = new MercadoPagoController();
                     $data = json_decode(file_get_contents('php://input'), true);
                     $mercadoPagoController->gerarPix($data);
                 });
 
-                // Gerar Boleto - Rota privada
                 $router->post('/gerar-boleto', function () {
                     $mercadoPagoController = new MercadoPagoController();
                     $data = json_decode(file_get_contents('php://input'), true);
                     $mercadoPagoController->gerarBoleto($data);
                 });
 
-                // Consultar status de pagamento - Rota privada
                 $router->post('/consultar-pagamento', function () {
                     $mercadoPagoController = new MercadoPagoController();
                     $data = json_decode(file_get_contents('php://input'), true);
                     $mercadoPagoController->consultarPagamento($data);
                 });
 
-                // Listar pagamentos - Rota privada
+                $router->get('/cancelar-pagamento/{id}', function ($id) {
+                    $mercadoPagoController = new MercadoPagoController($id);
+                    $mercadoPagoController->cancelarPagamento();
+                });
+
                 $router->post('/listar-pagamentos', function () {
                     $mercadoPagoController = new MercadoPagoController();
                     $data = json_decode(file_get_contents('php://input'), true);

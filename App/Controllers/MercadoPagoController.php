@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\ContasModel;
 use Dotenv\Dotenv;
 use App\Models\MercadoPagoModel;
 use App\Models\ContasUsuariosModel;
@@ -361,6 +362,19 @@ class MercadoPagoController extends ControllerBase
                 throw new \Exception("O ID da conta é obrigatório");
             }
 
+            $ultimoPagamento = $this->findOnly([
+                'filter' => [
+                    'id_conta' => $data['id_conta'],
+                    'tipo' => 'B'
+                ],
+                'limit' => 1,
+                'order' => ['id' => 'DESC']
+            ]);
+
+            if (count($ultimoPagamento) > 0) {
+                $ultimoPagamento = $ultimoPagamento[0];
+            }
+
             $contaController = new ContasUsuariosController();
             $conta = $contaController->findOnly([
                 'filter' => ['id' => $data['id_conta']],
@@ -390,18 +404,23 @@ class MercadoPagoController extends ControllerBase
                 throw new \Exception("Valor mensal inválido");
             }
 
+            $dataAtual = date('Y-m-d');
+            $dataVencimentoConta = $conta['vencimento'] ?? $dataAtual;
+            
+            if (strtotime($dataVencimentoConta) <= strtotime($dataAtual)) {
+                $dataVencimento = date('Y-m-d', strtotime('+7 days'));
+            } else {
+                $dataVencimento = date('Y-m-d', strtotime($dataVencimentoConta));
+            }
+
             $empresa = $conta['empresas'][0];
 
-            // Criar o pagamento Boleto no Mercado Pago
             $client = new PaymentClient();
-
-            // Data de vencimento do boleto (7 dias a partir de hoje)
-            $dataVencimento = date('Y-m-d', strtotime('+7 days'));
 
             $paymentData = [
                 "transaction_amount" => $valorMensal,
                 "description" => "Assinatura mensal - " . ($conta['responsavel'] ?? 'Sistema'),
-                "payment_method_id" => "bolbradesco", // Boleto Bradesco
+                "payment_method_id" => "bolbradesco",
                 "payer" => [
                     "email" => $conta['email'] ?? "pagamento@sistema.com",
                     "first_name" => $conta['responsavel'] ?? "Cliente",
@@ -418,18 +437,17 @@ class MercadoPagoController extends ControllerBase
                         "federal_unit" => $empresa['uf'] ?? ""
                     ]
                 ],
-                "date_of_expiration" => $dataVencimento . "T23:59:59.000-04:00",
-                "notification_url" => $_ENV['URL_WEBHOOKS']
+                "date_of_expiration" => $dataVencimento . "T23:59:59.000-04:00"
             ];
 
             $payment = $client->create($paymentData);
 
-            // Salvar o pagamento no banco de dados
             $pagamentoData = [
                 'id_conta' => $data['id_conta'],
                 'payment_id' => $payment->id,
                 'status' => $payment->status,
                 'valor' => $valorMensal,
+                'tipo' => 'B',
                 'qr_code' => null,
                 'qr_code_base64' => null,
                 'ticket_url' => $payment->transaction_details->external_resource_url ?? null,
@@ -437,6 +455,67 @@ class MercadoPagoController extends ControllerBase
             ];
 
             $resultado = $this->model->insert($pagamentoData);
+
+            if($ultimoPagamento && $ultimoPagamento['status'] !== 'cancelled') {
+                $this->cancelarApenas($ultimoPagamento['id']);
+            }
+
+            $contas = new ContasUsuariosController();
+            $contasAdms = $contas->findOnly([
+                'filter' => [
+                    'tipo' => 'A'
+                ],
+                'includes' => [
+                    'empresas' => true
+                ]
+            ]);
+
+            $contaPagamento = new ContasModel();
+
+            foreach ($contasAdms as $key => $contaAdm) {
+                $finded = false;
+                $empresaPrincipal = $contaAdm['empresas'][0];
+
+                foreach ($contaAdm['empresas'] as $empresa) {
+                    if ($empresa['principal'] == 'S') {
+                        $empresaPrincipal = $empresa;
+                        break;
+                    }
+                }
+
+                if($ultimoPagamento) {
+                    $contasExistentes = $contaPagamento->find([
+                        'id_conta' => $contaAdm['id'],
+                        'id_empresa' => $empresaPrincipal['id'],
+                        'id_pagamento_mercado_pago' => $ultimoPagamento['id']
+                    ]);
+
+                    foreach ($contasExistentes as $contaExistente) {
+                        $finded = true;
+                        $contaPagamentoControllerInstance = new ContasController($contaExistente['id']);
+                        $contaPagamentoControllerInstance->updateOnly([
+                            'valor' => $valorMensal,
+                            'descricao' => $paymentData['description'],
+                            'vencimento' => $dataVencimento,
+                            'url_boleto' => $payment->transaction_details->external_resource_url ?? null,
+                            'id_pagamento_mercado_pago' => $resultado['id']
+                        ]);
+                    }
+                } 
+
+                if(!$finded) {
+                    $contaPagamento->insert([
+                        'id_conta' => $contaAdm['id'],
+                        'id_empresa' => $empresaPrincipal['id'],
+                        'valor' => $valorMensal,
+                        'descricao' => $paymentData['description'],
+                        'natureza' => 'R',
+                        'vencimento' => $dataVencimento,
+                        'url_boleto' => $payment->transaction_details->external_resource_url ?? null,
+                        'id_pagamento_mercado_pago' => $resultado['id']
+                    ]);
+                }
+            }
 
             http_response_code(200);
             echo json_encode([
@@ -472,6 +551,112 @@ class MercadoPagoController extends ControllerBase
             ]);
         } catch (\Exception $e) {
             error_log("Erro Exception Boleto: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode([
+                "success" => false,
+                "message" => $e->getMessage()
+            ]);
+        }
+    }
+
+    private function cancelarApenas($id) {
+        try {
+            $mercadoPagamentoModel = new MercadoPagoModel($id);
+            $pagamentoCurrent = $mercadoPagamentoModel->current();
+            $client = new PaymentClient();
+            $cancelledPayment = $client->cancel($pagamentoCurrent['payment_id']);
+
+            $contaPagamentoController = new ContasController();
+            $contasPagamento = $contaPagamentoController->findOnly([
+                'filter' => [
+                    'id_pagamento_mercado_pago' => $id
+                ]
+            ]);
+
+            foreach ($contasPagamento as $contaPagamento) {
+                $contaPagamentoControllerInstance = new ContasController($contaPagamento['id']);
+                $contaPagamentoControllerInstance->update([
+                    'situacao' => 'CA'
+                ]);
+            }
+
+            return $mercadoPagamentoModel->update([
+                'status' => $cancelledPayment->status,
+                'payment_data' => json_encode($cancelledPayment)
+            ]);
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
+    public function cancelarPagamento()
+    {
+        try {
+            $pagamentoCurrent = $this->model->current();
+
+            if (empty($pagamentoCurrent) || !isset($pagamentoCurrent['id'])) {
+                throw new \Exception("Pagamento não encontrado");
+            }
+
+            if ($pagamentoCurrent['status'] === 'cancelled') {
+                throw new \Exception("Este pagamento já foi cancelado");
+            }
+
+            if ($pagamentoCurrent['status'] === 'approved') {
+                throw new \Exception("Não é possível cancelar um pagamento já aprovado");
+            }
+
+            $paymentId = $pagamentoCurrent['payment_id'];
+
+            $client = new PaymentClient();
+            $cancelledPayment = $client->cancel($paymentId);
+
+            $this->model->update([
+                'status' => $cancelledPayment->status,
+                'payment_data' => json_encode($cancelledPayment)
+            ]);
+
+            $pagamentoAtualizado = $this->model->current();
+
+            $contaPagamentoController = new ContasController();
+            $contasPagamento = $contaPagamentoController->findOnly([
+                'filter' => [
+                    'id_pagamento_mercado_pago' => $pagamentoCurrent['id']
+                ]
+            ]); 
+
+            foreach ($contasPagamento as $contaPagamento) {
+                $contaPagamentoControllerInstance = new ContasController($contaPagamento['id']);
+                $contaPagamentoControllerInstance->update([
+                    'situacao' => 'CA'
+                ]);
+            }
+
+            http_response_code(200);
+            echo json_encode([
+                "success" => true,
+                "message" => "Pagamento cancelado com sucesso",
+                "data" => $pagamentoAtualizado
+            ]);
+        } catch (MPApiException $e) {
+            $apiResponse = $e->getApiResponse();
+            $content = $apiResponse ? $apiResponse->getContent() : null;
+            
+            error_log("Erro MPApiException Cancelamento: " . json_encode([
+                'message' => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'content' => $content
+            ]));
+            
+            http_response_code(500);
+            echo json_encode([
+                "success" => false,
+                "message" => "Erro na API do Mercado Pago: " . $e->getMessage(),
+                "status_code" => $e->getStatusCode(),
+                "details" => $content
+            ]);
+        } catch (\Exception $e) {
+            error_log("Erro Exception Cancelamento: " . $e->getMessage());
             http_response_code(500);
             echo json_encode([
                 "success" => false,

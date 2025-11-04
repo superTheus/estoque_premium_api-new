@@ -279,4 +279,31 @@ class MercadoPagoModel extends BaseModel
     {
         return $this->table;
     }
+
+    /**
+     * Cancela um pagamento no banco de dados (atualiza status para 'cancelled')
+     * 
+     * @param int $id ID do pagamento no banco
+     * @return array Dados atualizados do pagamento
+     */
+    public function cancelarPagamento($id)
+    {
+        try {
+            $sql = "UPDATE {$this->table} SET status = 'cancelled' WHERE id = :id";
+            
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindParam(':id', $id);
+            $result = $stmt->execute();
+
+            if ($result) {
+                // Buscar os dados atualizados
+                $this->findById($id);
+                return $this->current();
+            }
+
+            throw new \Exception("Erro ao cancelar pagamento no banco de dados");
+        } catch (\PDOException $e) {
+            throw new \PDOException("Erro ao cancelar pagamento: " . $e->getMessage());
+        }
+    }
 }

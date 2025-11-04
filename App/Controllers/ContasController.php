@@ -123,7 +123,7 @@ class ContasController extends ControllerBase
     }
   }
 
-  public function update($data)
+  public function updateOnly($data)
   {
     try {
       $currentData = $this->model->current();
@@ -185,12 +185,22 @@ class ContasController extends ControllerBase
 
         $result = $this->model->update($data);
 
-        http_response_code(200);
-        echo json_encode($result);
+        return $result;
       } else {
-        http_response_code(404);
-        echo json_encode(["message" => "User not found"]);
+        throw new \Exception("User not found");
       }
+    } catch (\Exception $e) {
+      throw new \Exception($e->getMessage());
+    }
+  }
+
+  public function update($data)
+  {
+    try {
+      $result = $this->updateOnly($data);
+
+      http_response_code(200);
+      echo json_encode($result);
     } catch (\Exception $e) {
       http_response_code(500);
       echo json_encode(["message" => $e->getMessage()]);
