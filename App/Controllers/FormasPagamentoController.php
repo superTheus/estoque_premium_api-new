@@ -57,15 +57,23 @@ class FormasPagamentoController extends ControllerBase
         return $this->model->current();
     }
 
+    public function createOnly($data)
+    {
+        try {
+            $this->validateRequiredFields($this->model, $data);
+            $result = $this->model->insert($data);
+
+            return $result;
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
     public function create($data)
     {
         try {
             $data['id_conta'] = $_REQUEST['id_conta'];
-            $this->validateRequiredFields($this->model, $data);
-            $result = $this->model->insert($data);
-
-            http_response_code(200);
-            echo json_encode($result);
+            return $this->createOnly($data);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(["message" => $e->getMessage()]);

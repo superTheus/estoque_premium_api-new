@@ -98,7 +98,46 @@ class ContasUsuariosController extends ControllerBase
       $this->validateRequiredFields($this->model, $data);
 
       $result = $this->model->insert($data);
+      $formas = [];
+      if($result) {
+        $formaPagamentoController = new FormasPagamentoController();
+        $formas[] = $formaPagamentoController->createOnly([
+          "id_conta" => $result['id'],
+          "id_tipo" => 1,
+          "descricao" => "Dinheiro",
+        ]);
+        $formas[] = $formaPagamentoController->createOnly([
+          "id_conta" => $result['id'],
+          "id_tipo" => 3,
+          "descricao" => "Cartão de Crédito",
+        ]);
+        $formas[] = $formaPagamentoController->createOnly([
+          "id_conta" => $result['id'],
+          "id_tipo" => 4,
+          "descricao" => "Cartão de Débito",
+        ]);
+        $formas[] = $formaPagamentoController->createOnly([
+          "id_conta" => $result['id'],
+          "id_tipo" => 13,
+          "descricao" => "Pix",
+        ]);
+        $formas[] = $formaPagamentoController->createOnly([
+          "id_conta" => $result['id'],
+          "id_tipo" => 11,
+          "descricao" => "Boleto",
+        ]);
+        $formas[] = $formaPagamentoController->createOnly([
+          "id_conta" => $result['id'],
+          "id_tipo" => 5,
+          "descricao" => "Crediário",
+        ]);
 
+        $mercadoPagoController = new MercadoPagoController();
+        $mercadoPagoController->gerarBoletoApenas([
+          'id_conta' => $result['id']
+        ]);
+      }
+      
       http_response_code(200);
       echo json_encode($result);
     } catch (\Exception $e) {

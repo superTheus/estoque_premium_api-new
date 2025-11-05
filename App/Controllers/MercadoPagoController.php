@@ -351,11 +351,7 @@ class MercadoPagoController extends ControllerBase
         }
     }
 
-    /**
-     * Gera um pagamento via Boleto para uma conta de usuário
-     * Recebe: { "id_conta": 123 }
-     */
-    public function gerarBoleto($data)
+    public function gerarBoletoApenas($data)
     {
         try {
             if (!isset($data['id_conta']) || empty($data['id_conta'])) {
@@ -406,7 +402,7 @@ class MercadoPagoController extends ControllerBase
 
             $dataAtual = date('Y-m-d');
             $dataVencimentoConta = $conta['vencimento'] ?? $dataAtual;
-            
+
             if (strtotime($dataVencimentoConta) <= strtotime($dataAtual)) {
                 $dataVencimento = date('Y-m-d', strtotime('+7 days'));
             } else {
@@ -456,7 +452,7 @@ class MercadoPagoController extends ControllerBase
 
             $resultado = $this->model->insert($pagamentoData);
 
-            if($ultimoPagamento && $ultimoPagamento['status'] !== 'cancelled') {
+            if ($ultimoPagamento && $ultimoPagamento['status'] !== 'cancelled') {
                 $this->cancelarApenas($ultimoPagamento['id']);
             }
 
@@ -483,7 +479,7 @@ class MercadoPagoController extends ControllerBase
                     }
                 }
 
-                if($ultimoPagamento) {
+                if ($ultimoPagamento) {
                     $contasExistentes = $contaPagamento->find([
                         'id_conta' => $contaAdm['id'],
                         'id_empresa' => $empresaPrincipal['id'],
@@ -501,9 +497,9 @@ class MercadoPagoController extends ControllerBase
                             'id_pagamento_mercado_pago' => $resultado['id']
                         ]);
                     }
-                } 
+                }
 
-                if(!$finded) {
+                if (!$finded) {
                     $contaPagamento->insert([
                         'id_conta' => $contaAdm['id'],
                         'id_empresa' => $empresaPrincipal['id'],
@@ -517,8 +513,7 @@ class MercadoPagoController extends ControllerBase
                 }
             }
 
-            http_response_code(200);
-            echo json_encode([
+            return json_encode([
                 "success" => true,
                 "message" => "Boleto gerado com sucesso",
                 "data" => [
@@ -535,20 +530,28 @@ class MercadoPagoController extends ControllerBase
         } catch (MPApiException $e) {
             $apiResponse = $e->getApiResponse();
             $content = $apiResponse ? $apiResponse->getContent() : null;
-            
+
             error_log("Erro MPApiException Boleto: " . json_encode([
                 'message' => $e->getMessage(),
                 'status_code' => $e->getStatusCode(),
                 'content' => $content
             ]));
-            
-            http_response_code(500);
-            echo json_encode([
+
+            throw new \Exception(json_encode([
                 "success" => false,
                 "message" => "Erro na API do Mercado Pago: " . $e->getMessage(),
                 "status_code" => $e->getStatusCode(),
                 "details" => $content
-            ]);
+            ]));
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
+    public function gerarBoleto($data)
+    {
+        try {
+            return $this->gerarBoletoApenas($data);
         } catch (\Exception $e) {
             error_log("Erro Exception Boleto: " . $e->getMessage());
             http_response_code(500);
