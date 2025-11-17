@@ -679,6 +679,27 @@ class Routers
             echo json_encode(['errno' => $errno, 'error' => $error, 'http_code' => $info['http_code'] ?? null, 'primary_ip' => $info['primary_ip'] ?? null, 'ssl_info' => $info]);
         });
 
+        // Rota para consultar CNPJ na ReceitaWS
+        $router->get('/utils/cnpj/{cnpj}', function ($cnpj) {
+            try {
+                $resultado = \App\Models\UtilsModel::consultarCNPJ($cnpj);
+                
+                if ($resultado['success']) {
+                    http_response_code(200);
+                    echo json_encode($resultado);
+                } else {
+                    http_response_code(400);
+                    echo json_encode($resultado);
+                }
+            } catch (\Exception $e) {
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ]);
+            }
+        });
+
         $router->set404(function () {
             header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found');
             echo '404, Rota não encontrada';

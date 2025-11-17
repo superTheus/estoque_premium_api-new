@@ -82,4 +82,65 @@ class UtilsModel
         );
         return $formatter->format(new \DateTime());
     }
+
+    /**
+     * Consulta dados de CNPJ na API da ReceitaWS
+     * 
+     * @param string $cnpj CNPJ a ser consultado (com ou sem formatação)
+     * @return array Dados da empresa ou erro
+     */
+    public static function consultarCNPJ($cnpj)
+    {
+        try {
+            // Remover formatação do CNPJ (pontos, barras e hífens)
+            $cnpjLimpo = preg_replace('/\D/', '', $cnpj);
+
+            // Validar se tem 14 dígitos
+            if (strlen($cnpjLimpo) !== 14) {
+                throw new \Exception("CNPJ inválido. Deve conter 14 dígitos.");
+            }
+
+            // Fazer requisição GET para a API
+            $url = "https://receitaws.com.br/v1/cnpj/{$cnpjLimpo}";
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Accept: application/json',
+                'User-Agent: Mozilla/5.0'
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($error) {
+                throw new \Exception("Erro na requisição: {$error}");
+            }
+
+            if ($httpCode !== 200) {
+                throw new \Exception("Erro ao consultar CNPJ. Código HTTP: {$httpCode}");
+            }
+
+            $data = json_decode($response, true);
+
+            // Verificar se houve erro na resposta da API
+            if (isset($data['status']) && $data['status'] === 'ERROR') {
+                throw new \Exception($data['message'] ?? 'Erro ao consultar CNPJ');
+            }
+
+            return [
+                'success' => true,
+                'data' => $data
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
 }

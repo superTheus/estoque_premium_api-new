@@ -132,10 +132,46 @@ class ContasUsuariosController extends ControllerBase
           "descricao" => "Crediário",
         ]);
 
+        $operacoesController = new OperacoesController();
+        $operacoesController->createOnly([
+          "id_conta" => $result['id'],
+          "cfop_internacional" => "6102",
+          "cfop_estadual" => "5102",
+          "natureza_operacao" => "V",
+          "tipo" => "R",
+          "mov_estoque" => "S",
+          "descricao" => "Venda de Mercadoria", 
+        ]);
+
+        $operacoesController->createOnly([
+          "id_conta" => $result['id'],
+          "cfop_internacional" => "2102",
+          "cfop_estadual" => "1102",
+          "natureza_operacao" => "E",
+          "tipo" => "D",
+          "mov_estoque" => "E",
+          "descricao" => "Entrada de Mercadoria",
+        ]);
+        
+        $newCliente = [
+          'tipo_cliente' => 'PJ',
+          'nome' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+          'apelido' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+          'documento' => $data['empresas'][0]['cnpj'] ?? null,
+          'razao_social' => $data['empresas'][0]['razao_social'] ?? null,
+          'email' => $data['empresas'][0]['email'] ?? null,
+          'cep' => $data['empresas'][0]['cep'] ?? null,
+          'logradouro' => $data['empresas'][0]['logradouro'] ?? null,
+          'numero' => $data['empresas'][0]['numero'] ?? null,
+          'bairro' => $data['empresas'][0]['bairro'] ?? null,
+          'cidade' => $data['empresas'][0]['cidade'] ?? null,
+          'estado' => $data['empresas'][0]['uf'] ?? null,
+        ];
+
         $mercadoPagoController = new MercadoPagoController();
         $mercadoPagoController->gerarBoletoApenas([
           'id_conta' => $result['id']
-        ]);
+        ], $newCliente);
       }
       
       http_response_code(200);

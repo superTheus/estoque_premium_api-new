@@ -351,7 +351,7 @@ class MercadoPagoController extends ControllerBase
         }
     }
 
-    public function gerarBoletoApenas($data)
+    public function gerarBoletoApenas($data, $cliente = null)
     {
         try {
             if (!isset($data['id_conta']) || empty($data['id_conta'])) {
@@ -425,7 +425,7 @@ class MercadoPagoController extends ControllerBase
                         "number" => $empresa['cnpj'] ?? "00000000000"
                     ],
                     "address" => [
-                        "zip_code" => $empresa['cep'] ?? "",
+                        "zip_code" => preg_replace('/\D/', '', $empresa['cep'] ?? ""),
                         "street_name" => $empresa['logradouro'] ?? "",
                         "street_number" => $empresa['numero'] ?? "S/N",
                         "neighborhood" => $empresa['bairro'] ?? "",
@@ -500,7 +500,14 @@ class MercadoPagoController extends ControllerBase
                 }
 
                 if (!$finded) {
-                    $contaPagamento->insert([
+                    $clienteCriado = null;
+                    if($cliente) {
+                        $cliente['id_conta'] = $contaAdm['id'];
+                        $clienteController = new ClientesController();
+                        $clienteCriado = $clienteController->createOnly($cliente);
+                    }
+
+                    $dataPagamento = [
                         'id_conta' => $contaAdm['id'],
                         'id_empresa' => $empresaPrincipal['id'],
                         'valor' => $valorMensal,
@@ -508,8 +515,15 @@ class MercadoPagoController extends ControllerBase
                         'natureza' => 'R',
                         'vencimento' => $dataVencimento,
                         'url_boleto' => $payment->transaction_details->external_resource_url ?? null,
-                        'id_pagamento_mercado_pago' => $resultado['id']
-                    ]);
+                        'id_pagamento_mercado_pago' => $resultado['id'],
+                        'origem' => 'V'
+                    ];
+
+                    if($clienteCriado) {
+                        $dataPagamento['id_cliente'] = $clienteCriado['id'];
+                    }
+
+                    $contaPagamento->insert($dataPagamento);
                 }
             }
 
