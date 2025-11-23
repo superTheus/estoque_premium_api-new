@@ -84,7 +84,7 @@ class EmpresasController extends ControllerBase
             throw new \Exception("Série e número de homologação são obrigatórios");
           }
 
-          if(!isset($data['csc_homologacao']) || !isset($data['csc_id_homologacao'])) {
+          if (!isset($data['csc_homologacao']) || !isset($data['csc_id_homologacao'])) {
             throw new \Exception("CSCs e IDs de homologação são obrigatórios");
           }
         } else {
@@ -92,7 +92,7 @@ class EmpresasController extends ControllerBase
             throw new \Exception("Série e número da nota são obrigatórios");
           }
 
-          if(!isset($data['csc']) || !isset($data['csc_id'])) {
+          if (!isset($data['csc']) || !isset($data['csc_id'])) {
             throw new \Exception("CSCs e IDs são obrigatórios");
           }
         }
@@ -102,14 +102,20 @@ class EmpresasController extends ControllerBase
         }
 
         $fiscalController = new FiscalController();
-        $certTest = $fiscalController->testeCertificado([
-          'certificado' => $data['certificado'],
-          'senha' => $data['senha']
-        ]);
+        $certTest = null;
 
-        if (preg_replace('/\D/', '', $data['cnpj']) !== $certTest['cnpj']) {
-          throw new \Exception("CNPJ do certificado não corresponde ao CNPJ da empresa");
-        }
+        // try {
+        //   $certTest = $fiscalController->testeCertificado([
+        //     'certificado' => $data['certificado'],
+        //     'senha' => $data['senha']
+        //   ]);
+        // } catch (\Exception $e) {
+        //   throw new \Exception("Erro ao validar certificado: " . $e->getMessage());
+        // }
+
+        // if (preg_replace('/\D/', '', $data['cnpj']) !== $certTest['cnpj']) {
+        //   throw new \Exception("CNPJ do certificado não corresponde ao CNPJ da empresa");
+        // }
 
         $companys = $fiscalController->listCompany([
           "filter" => [
@@ -213,7 +219,7 @@ class EmpresasController extends ControllerBase
   {
     try {
       $currentData = $this->model->current();
-      
+
       if (isset($data['emite_nota']) && $data['emite_nota'] === 'S') {
         if (!isset($data['inscricao_estadual'])) {
           $data['inscricao_estadual'] = $currentData['inscricao_estadual'];
@@ -247,59 +253,48 @@ class EmpresasController extends ControllerBase
           $data['crt'] = $currentData['crt'];
         }
 
-        if(!isset($data['serie_nfce_homologacao'])) {
+        if (!isset($data['serie_nfce_homologacao'])) {
           $data['serie_nfce_homologacao'] = $currentData['serie_nfce_homologacao'];
         }
 
-        if(!isset($data['numero_nfce_homologacao'])) {
+        if (!isset($data['numero_nfce_homologacao'])) {
           $data['numero_nfce_homologacao'] = $currentData['numero_nfce_homologacao'];
         }
 
-        if(!isset($data['serie_nfe_homologacao'])) {
+        if (!isset($data['serie_nfe_homologacao'])) {
           $data['serie_nfe_homologacao'] = $currentData['serie_nfe_homologacao'];
         }
 
-        if(!isset($data['numero_nfe_homologacao'])) {
+        if (!isset($data['numero_nfe_homologacao'])) {
           $data['numero_nfe_homologacao'] = $currentData['numero_nfe_homologacao'];
         }
 
-        if(!isset($data['cep'])) {
+        if (!isset($data['cep'])) {
           $data['cep'] = $currentData['cep'];
         }
 
-        if(!isset($data['logradouro'])) {
+        if (!isset($data['logradouro'])) {
           $data['logradouro'] = $currentData['logradouro'];
         }
 
-        if(!isset($data['numero'])) {
+        if (!isset($data['numero'])) {
           $data['numero'] = $currentData['numero'];
         }
 
-        if(!isset($data['bairro'])) {
+        if (!isset($data['bairro'])) {
           $data['bairro'] = $currentData['bairro'];
         }
 
-        if(!isset($data['cidade'])) {
+        if (!isset($data['cidade'])) {
           $data['cidade'] = $currentData['cidade'];
         }
 
-        if(!isset($data['uf'])) {
+        if (!isset($data['uf'])) {
           $data['uf'] = $currentData['uf'];
         }
 
         if (!isset($data['inscricao_estadual']) && !isset($currentData['inscricao_estadual'])) {
           throw new \Exception("Inscrição estadual é obrigatória para emissão de nota");
-        }
-
-        if (
-          !isset($data['csc']) ||
-          !isset($data['csc_id']) ||
-          !isset($data['certificado']) ||
-          !isset($data['certificado_nome']) ||
-          !isset($data['senha']) ||
-          !isset($data['crt']) 
-        ) {
-          throw new \Exception("Preencha todos os campos obrigatórios de tributação");
         }
 
         if (
@@ -350,7 +345,7 @@ class EmpresasController extends ControllerBase
             $data['cnpj'] = $currentData['cnpj'];
           }
 
-          if ($data['cnpj'] !== $certTest['cnpj']) {
+          if (preg_replace('/\D/', '', $data['cnpj']) !== $certTest['cnpj']) {
             throw new \Exception("CNPJ do certificado não corresponde ao CNPJ da empresa");
           }
 
@@ -403,7 +398,6 @@ class EmpresasController extends ControllerBase
               "numero_nfe_homologacao" => $data['numero_nfe_homologacao'] ?? $company['numero_nfe_homologacao'],
               "crt" => $data['crt'] ?? $company['crt']
             ]);
-            
           } else {
             $fiscalController->createCompany([
               "cnpj" => preg_replace('/\D/', '', $data['cnpj']),

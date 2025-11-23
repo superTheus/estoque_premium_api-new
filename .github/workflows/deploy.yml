@@ -1,0 +1,47 @@
+name: Deploy frontend to VPS
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # ajuste se precisar
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+
+      - name: Ensure known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          if [ -n "${{ secrets.KNOWN_HOSTS }}" ]; then
+            echo "${{ secrets.KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -t ed25519 ${{ secrets.DEPLOY_SERVER }} >> ~/.ssh/known_hosts
+          fi
+
+      - name: Rsync build to server
+        env:
+          SERVER: ${{ secrets.DEPLOY_SERVER }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          TARGET_DIR: ${{ secrets.DEPLOY_TARGET_DIR }}
+        run: |
+          BUILD_DIR="./dist" 
+          rsync -avz --delete -e "ssh -p 22022" ${BUILD_DIR}/ ${USER}@${SERVER}:${TARGET_DIR}/
