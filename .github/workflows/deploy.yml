@@ -15,39 +15,39 @@
     ssh -p "${PORT}" "${USER}@${SERVER}" bash -s -- "${PROJECT_DIR}" "${POST_CMDS}" <<'SSH_CMDS'
     set -e
 
-PROJECT_DIR="$1"
-POST_CMDS="$2"
-BRANCH="master"
+    PROJECT_DIR="$1"
+    POST_CMDS="$2"
+    BRANCH="master"
 
-if [ -z "$PROJECT_DIR" ]; then
-  echo "ERROR: PROJECT_DIR empty"
-  exit 2
-fi
+    if [ -z "$PROJECT_DIR" ]; then
+      echo "ERROR: PROJECT_DIR empty"
+      exit 2
+    fi
 
-if [ ! -d "$PROJECT_DIR" ]; then
-  echo "ERROR: project dir $PROJECT_DIR not found"
-  exit 2
-fi
+    if [ ! -d "$PROJECT_DIR" ]; then
+      echo "ERROR: project dir $PROJECT_DIR not found"
+      exit 2
+    fi
 
-cd "$PROJECT_DIR"
+    cd "$PROJECT_DIR"
 
-# sincroniza com o remoto de forma segura
-git fetch origin
-git checkout "${BRANCH}" || git checkout -b "${BRANCH}" origin/${BRANCH}
-git reset --hard origin/${BRANCH}
-git clean -fd
-git pull origin "${BRANCH}"
+    # sincroniza com o remoto de forma segura
+    git fetch origin
+    git checkout "${BRANCH}" || git checkout -b "${BRANCH}" origin/${BRANCH}
+    git reset --hard origin/${BRANCH}
+    git clean -fd
+    git pull origin "${BRANCH}"
 
-echo "Last commit on server:"
-git --no-pager log -1 --pretty=format:"%h %s (%ci) by %an"
+    echo "Last commit on server:"
+    git --no-pager log -1 --pretty=format:"%h %s (%ci) by %an"
 
-if [ -n "$POST_CMDS" ]; then
-  echo "Running post-deploy commands..."
-  # executar como shell (atenção: POST_CMDS é executado no servidor; cuidado com permissões)
-  eval "$POST_CMDS"
-else
-  echo "No post-deploy commands provided."
-fi
+    if [ -n "$POST_CMDS" ]; then
+      echo "Running post-deploy commands..."
+      # executar como shell (atenção: POST_CMDS é executado no servidor; cuidado com permissões)
+      eval "$POST_CMDS"
+    else
+      echo "No post-deploy commands provided."
+    fi
 
-exit 0
-SSH_CMDS
+    exit 0
+    SSH_CMDS
