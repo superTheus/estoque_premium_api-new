@@ -38,8 +38,11 @@ jobs:
         run: |
           echo "Connecting to ${USER}@${SERVER}:${PORT} and pulling in ${PROJECT_DIR}"
 
+          # quick connection test (will fail early if SSH not ok)
           ssh -o StrictHostKeyChecking=yes -p "${PORT}" "${USER}@${SERVER}" "echo 'SSH OK: connected as $(whoami) on $(hostname)'; exit"
 
+          # Pass PROJECT_DIR and POST_CMDS as positional args to the remote bash
+          ssh -p "${PORT}" "${USER}@${SERVER}" bash -s -- "${PROJECT_DIR}" "${POST_CMDS}" <<'SSH_CMDS'
           set -e
 
           PROJECT_DIR="$1"
@@ -47,8 +50,7 @@ jobs:
           BRANCH="master"
 
           if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: PROJECT_DIR empty"\
-            echo $PROJECT_DIR
+            echo "ERROR: PROJECT_DIR empty"
             exit 2
           fi
 
@@ -78,4 +80,3 @@ jobs:
 
           exit 0
           SSH_CMDS
-
