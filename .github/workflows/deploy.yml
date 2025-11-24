@@ -47,7 +47,8 @@ jobs:
           BRANCH="master"
 
           if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: PROJECT_DIR empty"
+            echo "ERROR: PROJECT_DIR empty"\
+            echo $PROJECT_DIR
             exit 2
           fi
 
