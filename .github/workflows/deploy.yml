@@ -1,47 +1,28 @@
-name: Deploy backend on push to master
+- name: Run git pull on server
+  env:
+    SERVER: ${{ secrets.DEPLOY_SERVER }}
+    USER: ${{ secrets.DEPLOY_USER }}
+    PORT: ${{ secrets.DEPLOY_PORT }}
+    PROJECT_DIR: ${{ secrets.DEPLOY_PROJECT_DIR }}
+    POST_CMDS: ${{ secrets.POST_DEPLOY_COMMANDS }}
+  run: |
+    echo "Connecting to ${USER}@${SERVER}:${PORT} and pulling in ${PROJECT_DIR}"
 
-on:
-  push:
-    branches:
-      - master
+    # quick connection test
+    ssh -o StrictHostKeyChecking=yes -p "${PORT}" "${USER}@${SERVER}" "echo 'SSH OK: connected as $(whoami) on $(hostname)'; exit"
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout (for logs if needed)
-        uses: actions/checkout@v4
+    # pass PROJECT_DIR and POST_CMDS as positional args to the remote bash (-s -- args...)
+    ssh -p "${PORT}" "${USER}@${SERVER}" bash -s -- "${PROJECT_DIR}" "${POST_CMDS}" <<'SSH_CMDS'
+    set -e
 
-      - name: Start ssh-agent with deploy key
-        uses: webfactory/ssh-agent@v0.9.1
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-
-      - name: Ensure known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          if [ -n "${{ secrets.KNOWN_HOSTS }}" ]; then
-            echo "${{ secrets.KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          else
-            # fallback: fetch host key (uses provided port)
-            ssh-keyscan -p "${{ secrets.DEPLOY_PORT }}" -t ecdsa,ed25519,rsa "${{ secrets.DEPLOY_SERVER }}" >> ~/.ssh/known_hosts
-          fi
-          chmod 600 ~/.ssh/known_hosts
-
-      - name: Run git pull on server
-        env:
-          SERVER: ${{ secrets.DEPLOY_SERVER }}
-          USER: ${{ secrets.DEPLOY_USER }}
-          PORT: ${{ secrets.DEPLOY_PORT }}
-          PROJECT_DIR: ${{ secrets.DEPLOY_PROJECT_DIR }}
-          POST_CMDS: ${{ secrets.POST_DEPLOY_COMMANDS }}
-        run: |
-          echo "Connecting to ${USER}@${SERVER}:${PORT} and pulling in ${PROJECT_DIR}"
-          ssh -o StrictHostKeyChecking=yes -p "${PORT}" "${USER}@${SERVER}" "echo 'SSH OK: connected as $(whoami) on $(hostname)'; exit"
-          ssh -p "${PORT}" "${USER}@${SERVER}" <<'SSH_CMDS'
-set -e
-PROJECT_DIR="${1}"
+PROJECT_DIR="$1"
+POST_CMDS="$2"
 BRANCH="master"
+
+if [ -z "$PROJECT_DIR" ]; then
+  echo "ERROR: PROJECT_DIR empty"
+  exit 2
+fi
 
 if [ ! -d "$PROJECT_DIR" ]; then
   echo "ERROR: project dir $PROJECT_DIR not found"
@@ -50,24 +31,23 @@ fi
 
 cd "$PROJECT_DIR"
 
+# sincroniza com o remoto de forma segura
 git fetch origin
 git checkout "${BRANCH}" || git checkout -b "${BRANCH}" origin/${BRANCH}
 git reset --hard origin/${BRANCH}
-git clean -fd 
+git clean -fd
 git pull origin "${BRANCH}"
 
 echo "Last commit on server:"
 git --no-pager log -1 --pretty=format:"%h %s (%ci) by %an"
 
-if [ -n "${POST_CMDS}" ]; then
+if [ -n "$POST_CMDS" ]; then
   echo "Running post-deploy commands..."
-  eval "${POST_CMDS}"
+  # executar como shell (atenção: POST_CMDS é executado no servidor; cuidado com permissões)
+  eval "$POST_CMDS"
 else
   echo "No post-deploy commands provided."
 fi
 
 exit 0
 SSH_CMDS
-        shell: bash
-        args: |
-          ${{ env.PROJECT_DIR }}
