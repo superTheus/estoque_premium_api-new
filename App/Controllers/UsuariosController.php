@@ -40,7 +40,7 @@ class UsuariosController extends ControllerBase
     public function search($data)
     {
         try {
-            if (!isset($data['searchTerm']) || empty($data['searchTerm'])) {
+            if (!isset($data['searchTerm'])) {
                 throw new \Exception("O termo de busca é obrigatório");
             }
 
