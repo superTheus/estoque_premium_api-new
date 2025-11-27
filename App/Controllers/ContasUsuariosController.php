@@ -170,7 +170,8 @@ class ContasUsuariosController extends ControllerBase
 
         $mercadoPagoController = new MercadoPagoController();
         $mercadoPagoController->gerarBoletoApenas([
-          'id_conta' => $result['id']
+          'id_conta' => $result['id'],
+          'forma_pagamento' => $formas[5]['id']
         ], $newCliente);
       }
       
