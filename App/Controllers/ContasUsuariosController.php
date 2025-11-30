@@ -99,7 +99,8 @@ class ContasUsuariosController extends ControllerBase
 
       $result = $this->model->insert($data);
       $formas = [];
-      if($result) {
+
+      if ($result) {
         $formaPagamentoController = new FormasPagamentoController();
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
@@ -140,7 +141,7 @@ class ContasUsuariosController extends ControllerBase
           "natureza_operacao" => "V",
           "tipo" => "R",
           "mov_estoque" => "S",
-          "descricao" => "Venda de Mercadoria", 
+          "descricao" => "Venda de Mercadoria",
         ]);
 
         $operacoesController->createOnly([
@@ -152,28 +153,72 @@ class ContasUsuariosController extends ControllerBase
           "mov_estoque" => "E",
           "descricao" => "Entrada de Mercadoria",
         ]);
-        
-        $newCliente = [
-          'tipo_cliente' => 'PJ',
-          'nome' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
-          'apelido' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
-          'documento' => $data['empresas'][0]['cnpj'] ?? null,
-          'razao_social' => $data['empresas'][0]['razao_social'] ?? null,
-          'email' => $data['empresas'][0]['email'] ?? null,
-          'cep' => $data['empresas'][0]['cep'] ?? null,
-          'logradouro' => $data['empresas'][0]['logradouro'] ?? null,
-          'numero' => $data['empresas'][0]['numero'] ?? null,
-          'bairro' => $data['empresas'][0]['bairro'] ?? null,
-          'cidade' => $data['empresas'][0]['cidade'] ?? null,
-          'estado' => $data['empresas'][0]['uf'] ?? null,
-        ];
+
+        $clienteController = new ClientesController();
+        $contasController = new ContasController();
+        $contasUsuariosController = new ContasController();
+
+        $contasAdms = $contasUsuariosController->findOnly([
+          'filter' => [
+            'tipo' => 'A',
+            'deletado' => 'N',
+            'status' => 'A',
+          ],
+          'includes' => [
+            'empresas' => true,
+            'usuarios' => true
+          ]
+        ]);
+
+        $contasGeradas = [];
+
+        if($contasAdms) {
+          foreach($contasAdms as $contaAdm) {
+            $forma = $formaPagamentoController->findOnly([
+              "filter" => [
+                "id_conta" => $contaAdm['id'],
+                "id_tipo" => 11
+              ],
+            ]);
+
+
+            if($forma && isset($forma[0])) {
+              $forma = $forma[0];
+            }
+
+            $cliente = $clienteController->createOnly([
+              'tipo_cliente' => 'PJ',
+              'nome' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+              'apelido' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+              'documento' => $data['empresas'][0]['cnpj'] ?? null,
+              'razao_social' => $data['empresas'][0]['razao_social'] ?? null,
+              'email' => $data['empresas'][0]['email'] ?? null,
+              'cep' => $data['empresas'][0]['cep'] ?? null,
+              'logradouro' => $data['empresas'][0]['logradouro'] ?? null,
+              'numero' => $data['empresas'][0]['numero'] ?? null,
+              'bairro' => $data['empresas'][0]['bairro'] ?? null,
+              'cidade' => $data['empresas'][0]['cidade'] ?? null,
+              'estado' => $data['empresas'][0]['uf'] ?? null,
+              'id_conta' => $contaAdm['id'],
+            ]);
+
+            $contasGeradas[] = $contasController->createOnly([
+              'id_cliente' => $cliente['id'],
+              'id_conta' => $result['id'],
+              'id_conta_adm' => $contaAdm['id'],
+              'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
+              'id_usuario' => $contaAdm['usuarios'][0]['id'] ?? null,
+              'id_forma_pagamento_boleto' => $forma ? $forma['id'] : null, 
+            ]);
+          }
+        }
 
         $mercadoPagoController = new MercadoPagoController();
         $mercadoPagoController->gerarBoletoApenas([
           'id_conta' => $result['id']
-        ], $newCliente);
+        ]);
       }
-      
+
       http_response_code(200);
       echo json_encode($result);
     } catch (\Exception $e) {

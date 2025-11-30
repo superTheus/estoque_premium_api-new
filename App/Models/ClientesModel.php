@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Controllers\UploadsController;
 use App\Models\BaseModel;
 
 use PDO;

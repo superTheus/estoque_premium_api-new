@@ -351,196 +351,34 @@ class MercadoPagoController extends ControllerBase
         }
     }
 
-    public function gerarBoletoApenas($data, $cliente = null)
+    public function gerarBoletoApenas($data)
     {
         try {
-            if (!isset($data['id_conta']) || empty($data['id_conta'])) {
-                throw new \Exception("O ID da conta é obrigatório");
-            }
-
-            $ultimoPagamento = $this->findOnly([
-                'filter' => [
-                    'id_conta' => $data['id_conta'],
-                    'tipo' => 'B'
-                ],
-                'limit' => 1,
-                'order' => ['id' => 'DESC']
-            ]);
-
-            if (count($ultimoPagamento) > 0) {
-                $ultimoPagamento = $ultimoPagamento[0];
-            }
-
-            $contaController = new ContasUsuariosController();
-            $conta = $contaController->findOnly([
-                'filter' => ['id' => $data['id_conta']],
-                'limit' => 1,
-                'includes' => [
-                    'empresas' => true
-                ]
-            ]);
-
-            if (count($conta) > 0) {
-                $conta = $conta[0];
-            } else {
-                $conta = null;
-            }
-
-            if (empty($conta)) {
-                throw new \Exception("Conta não encontrada");
-            }
-
-            if (!isset($conta['valor_mensal']) || empty($conta['valor_mensal'])) {
-                throw new \Exception("Valor mensal não definido para esta conta");
-            }
-
-            $valorMensal = floatval($conta['valor_mensal']);
-
-            if ($valorMensal <= 0) {
-                throw new \Exception("Valor mensal inválido");
-            }
-
-            $dataAtual = date('Y-m-d');
-            $dataVencimentoConta = $conta['vencimento'] ?? $dataAtual;
-
-            if (strtotime($dataVencimentoConta) <= strtotime($dataAtual)) {
-                $dataVencimento = date('Y-m-d', strtotime('+7 days'));
-            } else {
-                $dataVencimento = date('Y-m-d', strtotime($dataVencimentoConta));
-            }
-
-            $empresa = $conta['empresas'][0];
-
             $client = new PaymentClient();
-
-            $paymentData = [
-                "transaction_amount" => $valorMensal,
-                "description" => "Assinatura mensal - " . ($conta['responsavel'] ?? 'Sistema'),
+            $payment = $client->create([
+                "transaction_amount" => $data['valor'],
+                "description" => $data['descricao'],
                 "payment_method_id" => "bolbradesco",
                 "payer" => [
-                    "email" => $conta['email'] ?? "pagamento@sistema.com",
-                    "first_name" => $conta['responsavel'] ?? "Cliente",
+                    "email" => $data['email'] ?? "pagamento@sistema.com",
+                    "first_name" => $data['responsavel'] ?? "Cliente",
                     "identification" => [
                         "type" => "CNPJ",
-                        "number" => $empresa['cnpj'] ?? "00000000000"
+                        "number" => $data['cnpj'] ?? "00000000000"
                     ],
                     "address" => [
-                        "zip_code" => preg_replace('/\D/', '', $empresa['cep'] ?? ""),
-                        "street_name" => $empresa['logradouro'] ?? "",
-                        "street_number" => $empresa['numero'] ?? "S/N",
-                        "neighborhood" => $empresa['bairro'] ?? "",
-                        "city" => $empresa['cidade'] ?? "",
-                        "federal_unit" => $empresa['uf'] ?? ""
+                        "zip_code" => preg_replace('/\D/', '', $data['cep'] ?? ""),
+                        "street_name" => $data['logradouro'] ?? "",
+                        "street_number" => $data['numero'] ?? "S/N",
+                        "neighborhood" => $data['bairro'] ?? "",
+                        "city" => $data['cidade'] ?? "",
+                        "federal_unit" => $data['uf'] ?? ""
                     ]
                 ],
-                "date_of_expiration" => $dataVencimento . "T23:59:59.000-04:00"
-            ];
-
-            $payment = $client->create($paymentData);
-
-            $pagamentoData = [
-                'id_conta' => $data['id_conta'],
-                'payment_id' => $payment->id,
-                'status' => $payment->status,
-                'valor' => $valorMensal,
-                'tipo' => 'B',
-                'qr_code' => null,
-                'qr_code_base64' => null,
-                'ticket_url' => $payment->transaction_details->external_resource_url ?? null,
-                'payment_data' => json_encode($payment)
-            ];
-
-            $resultado = $this->model->insert($pagamentoData);
-
-            if ($ultimoPagamento && $ultimoPagamento['status'] !== 'cancelled') {
-                $this->cancelarApenas($ultimoPagamento['id']);
-            }
-
-            $contas = new ContasUsuariosController();
-            $contasAdms = $contas->findOnly([
-                'filter' => [
-                    'tipo' => 'A'
-                ],
-                'includes' => [
-                    'empresas' => true
-                ]
+                "date_of_expiration" => $data['dataVencimento'] . "T23:59:59.000-04:00"
             ]);
 
-            $contaPagamento = new ContasModel();
-
-            foreach ($contasAdms as $key => $contaAdm) {
-                $finded = false;
-                $empresaPrincipal = $contaAdm['empresas'][0];
-
-                foreach ($contaAdm['empresas'] as $empresa) {
-                    if ($empresa['principal'] == 'S') {
-                        $empresaPrincipal = $empresa;
-                        break;
-                    }
-                }
-
-                if ($ultimoPagamento) {
-                    $contasExistentes = $contaPagamento->find([
-                        'id_conta' => $contaAdm['id'],
-                        'id_empresa' => $empresaPrincipal['id'],
-                        'id_pagamento_mercado_pago' => $ultimoPagamento['id']
-                    ]);
-
-                    foreach ($contasExistentes as $contaExistente) {
-                        $finded = true;
-                        $contaPagamentoControllerInstance = new ContasController($contaExistente['id']);
-                        $contaPagamentoControllerInstance->updateOnly([
-                            'valor' => $valorMensal,
-                            'descricao' => $paymentData['description'],
-                            'vencimento' => $dataVencimento,
-                            'url_boleto' => $payment->transaction_details->external_resource_url ?? null,
-                            'id_pagamento_mercado_pago' => $resultado['id']
-                        ]);
-                    }
-                }
-
-                if (!$finded) {
-                    $clienteCriado = null;
-                    if($cliente) {
-                        $cliente['id_conta'] = $contaAdm['id'];
-                        $clienteController = new ClientesController();
-                        $clienteCriado = $clienteController->createOnly($cliente);
-                    }
-
-                    $dataPagamento = [
-                        'id_conta' => $contaAdm['id'],
-                        'id_empresa' => $empresaPrincipal['id'],
-                        'valor' => $valorMensal,
-                        'descricao' => $paymentData['description'],
-                        'natureza' => 'R',
-                        'vencimento' => $dataVencimento,
-                        'url_boleto' => $payment->transaction_details->external_resource_url ?? null,
-                        'id_pagamento_mercado_pago' => $resultado['id'],
-                        'origem' => 'V'
-                    ];
-
-                    if($clienteCriado) {
-                        $dataPagamento['id_cliente'] = $clienteCriado['id'];
-                    }
-
-                    $contaPagamento->insert($dataPagamento);
-                }
-            }
-
-            return json_encode([
-                "success" => true,
-                "message" => "Boleto gerado com sucesso",
-                "data" => [
-                    "id" => $resultado['id'],
-                    "payment_id" => $payment->id,
-                    "status" => $payment->status,
-                    "valor" => $valorMensal,
-                    "boleto_url" => $payment->transaction_details->external_resource_url ?? null,
-                    "barcode" => $payment->barcode->content ?? null,
-                    "data_vencimento" => $dataVencimento,
-                    "expiration_date" => $payment->date_of_expiration ?? null
-                ]
-            ]);
+            return $payment;
         } catch (MPApiException $e) {
             $apiResponse = $e->getApiResponse();
             $content = $apiResponse ? $apiResponse->getContent() : null;
