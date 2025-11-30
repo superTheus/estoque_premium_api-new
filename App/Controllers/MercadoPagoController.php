@@ -187,13 +187,13 @@ class MercadoPagoController extends ControllerBase
         } catch (MPApiException $e) {
             $apiResponse = $e->getApiResponse();
             $content = $apiResponse ? $apiResponse->getContent() : null;
-            
+
             error_log("Erro MPApiException PIX: " . json_encode([
                 'message' => $e->getMessage(),
                 'status_code' => $e->getStatusCode(),
                 'content' => $content
             ]));
-            
+
             http_response_code(500);
             echo json_encode([
                 "success" => false,
@@ -414,7 +414,8 @@ class MercadoPagoController extends ControllerBase
         }
     }
 
-    private function cancelarApenas($id) {
+    private function cancelarApenas($id)
+    {
         try {
             $mercadoPagamentoModel = new MercadoPagoModel($id);
             $pagamentoCurrent = $mercadoPagamentoModel->current();
@@ -478,7 +479,7 @@ class MercadoPagoController extends ControllerBase
                 'filter' => [
                     'id_pagamento_mercado_pago' => $pagamentoCurrent['id']
                 ]
-            ]); 
+            ]);
 
             foreach ($contasPagamento as $contaPagamento) {
                 $contaPagamentoControllerInstance = new ContasController($contaPagamento['id']);
@@ -496,13 +497,13 @@ class MercadoPagoController extends ControllerBase
         } catch (MPApiException $e) {
             $apiResponse = $e->getApiResponse();
             $content = $apiResponse ? $apiResponse->getContent() : null;
-            
+
             error_log("Erro MPApiException Cancelamento: " . json_encode([
                 'message' => $e->getMessage(),
                 'status_code' => $e->getStatusCode(),
                 'content' => $content
             ]));
-            
+
             http_response_code(500);
             echo json_encode([
                 "success" => false,

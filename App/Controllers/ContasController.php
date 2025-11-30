@@ -184,6 +184,10 @@ class ContasController extends ControllerBase
         }
 
         $result = $this->model->update($data);
+        
+        if($currentData['situacao'] !== $result['situacao'] && $result['situacao']) {
+          
+        }
 
         return $result;
       } else {

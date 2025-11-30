@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Models\ContasModel;
+use App\Models\ContasUsuariosModel;
 use App\Models\FormasPagamentoModel;
 use Dotenv\Dotenv;
 
@@ -57,11 +59,69 @@ class FormasPagamentoController extends ControllerBase
         return $this->model->current();
     }
 
+    public function validaCriacaoConta($data)
+    {
+        $this->validateRequiredFields($this->model, $data);
+
+        $this->validateRequiredFields($this->model, $data);
+
+        $contaModel = new ContasUsuariosModel($data['id_conta']);
+        $contaData = $contaModel->current();
+
+        if (!$contaData) {
+            throw new \Exception("Conta com ID {$data['id_conta']} não encontrada.");
+        }
+
+        if ($contaData['status'] !== 'A') {
+            throw new \Exception("Não é possível adicionar forma de pagamento a uma conta inativa.");
+        }
+
+        $result = null;
+
+        if ($contaData['tipo'] === 'A') {
+            $contasUsuariosModel = new ContasUsuariosModel();
+            $usuariosAdms = $contasUsuariosModel->find([
+                'tipo' => 'A',
+                'status' => 'A',
+            ]);
+
+            $uniqueId = uniqid("conta_", true);
+
+            foreach ($usuariosAdms as $usuarioAdm) {
+                $contaDados = $data;
+                $contaDados['id_conta'] = $usuarioAdm['id'];
+                $contaDados['token_unico'] = $uniqueId;
+
+                $r = $this->createOnly($contaDados);
+
+                if($r['id_conta'] === $data['id_conta']) {
+                    $result = $r;
+                }
+            }
+        } else {
+            $result = $this->createOnly($data);
+        }
+
+        return $result;
+    }
+
     public function createOnly($data)
     {
         try {
-            $this->validateRequiredFields($this->model, $data);
             $result = $this->model->insert($data);
+
+            if ($result['situacao'] === 'PE' && $result['natureza'] === 'R' && $result['id_forma']) {
+                $conta = new ContasUsuariosModel($result['id_conta']);
+
+                if ($conta[''] === 2) {
+                    $newMercardoPagoController = new MercadoPagoController();
+                }
+
+                $formaPagamento = new FormasPagamentoModel($result['id_forma']);
+                if ($formaPagamento['id_tipo'] === 3) {
+                    $newMercardoPagoController = new MercadoPagoController();
+                }
+            }
 
             return $result;
         } catch (\Exception $e) {
