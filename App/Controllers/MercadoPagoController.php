@@ -378,7 +378,20 @@ class MercadoPagoController extends ControllerBase
                 "date_of_expiration" => $data['dataVencimento'] . "T23:59:59.000-04:00"
             ]);
 
-            return $payment;
+            $pagamentoData = [
+                'payment_id' => $payment->id,
+                'status' => $payment->status,
+                'valor' => $data['valor'],
+                'tipo' => 'B',
+                'qr_code' => null,
+                'qr_code_base64' => null,
+                'ticket_url' => $payment->transaction_details->external_resource_url ?? null,
+                'payment_data' => json_encode($payment)
+            ];
+
+            $resultado = $this->model->insert($pagamentoData);
+
+            return $resultado;
         } catch (MPApiException $e) {
             $apiResponse = $e->getApiResponse();
             $content = $apiResponse ? $apiResponse->getContent() : null;

@@ -100,39 +100,69 @@ class ContasUsuariosController extends ControllerBase
       $result = $this->model->insert($data);
       $formas = [];
 
+      $contasGeradas = [];
+
       if ($result) {
+        $clienteController = new ClientesController();
+        $contasController = new ContasController();
+        $contasUsuariosController = new ContasUsuariosController();
+
+        $contaNova = $contasUsuariosController->findOnly([
+          'filter' => [
+            'id' => $result['id']
+          ],
+          'includes' => [
+            'empresas' => true,
+            'usuarios' => true
+          ]
+        ]);
+
+        if(!$contaNova || !isset($contaNova[0])) {
+          throw new \Exception("Erro ao recuperar a conta recém criada.");
+        }
+
+        $contaNova = $contaNova[0];
+        $empresa = $contaNova['empresas'][0] ?? null;
+        $usuario = $contaNova['usuarios'][0] ?? null;
+
         $formaPagamentoController = new FormasPagamentoController();
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 1,
           "descricao" => "Dinheiro",
         ]);
+
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 3,
           "descricao" => "Cartão de Crédito",
         ]);
+
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 4,
           "descricao" => "Cartão de Débito",
         ]);
+
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 13,
           "descricao" => "Pix",
         ]);
-        $formas[] = $formaPagamentoController->createOnly([
+
+        $boleto = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 11,
           "descricao" => "Boleto",
         ]);
+
+        $formas[] = $boleto;
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 5,
           "descricao" => "Crediário",
         ]);
-
+        
         $operacoesController = new OperacoesController();
         $operacoesController->createOnly([
           "id_conta" => $result['id'],
@@ -154,10 +184,6 @@ class ContasUsuariosController extends ControllerBase
           "descricao" => "Entrada de Mercadoria",
         ]);
 
-        $clienteController = new ClientesController();
-        $contasController = new ContasController();
-        $contasUsuariosController = new ContasController();
-
         $contasAdms = $contasUsuariosController->findOnly([
           'filter' => [
             'tipo' => 'A',
@@ -170,10 +196,10 @@ class ContasUsuariosController extends ControllerBase
           ]
         ]);
 
-        $contasGeradas = [];
+        $tokenUnico = uniqid(date('YmdHis'));
 
-        if($contasAdms) {
-          foreach($contasAdms as $contaAdm) {
+        if ($contasAdms) {
+          foreach ($contasAdms as $contaAdm) {
             $forma = $formaPagamentoController->findOnly([
               "filter" => [
                 "id_conta" => $contaAdm['id'],
@@ -182,7 +208,7 @@ class ContasUsuariosController extends ControllerBase
             ]);
 
 
-            if($forma && isset($forma[0])) {
+            if ($forma && isset($forma[0])) {
               $forma = $forma[0];
             }
 
@@ -203,21 +229,66 @@ class ContasUsuariosController extends ControllerBase
             ]);
 
             $contasGeradas[] = $contasController->createOnly([
-              'id_cliente' => $cliente['id'],
-              'id_conta' => $result['id'],
-              'id_conta_adm' => $contaAdm['id'],
+              'id_conta' => $contaAdm['id'],
               'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
-              'id_usuario' => $contaAdm['usuarios'][0]['id'] ?? null,
-              'id_forma_pagamento_boleto' => $forma ? $forma['id'] : null, 
+              'id_cliente' => $cliente['id'],
+              'id_forma' => $forma['id'] ?? null,
+              'descricao'  => 'Assinatura mensal - ' . $data['responsavel'],
+              'valor' => $data['valor_mensal'] ?? 0.00,
+              'origem' => 'M',
+              'natureza' => 'R',
+              'condicao' => 'A',
+              'vencimento' => $data['vencimento'],
+              'observacoes' => 'Geração automática de conta mensalidade',
+              'situacao' => 'PE',
+              'token_unico' => $tokenUnico,
             ]);
           }
         }
 
-        $mercadoPagoController = new MercadoPagoController();
-        $mercadoPagoController->gerarBoletoApenas([
-          'id_conta' => $result['id']
+        $contasGeradas[] = $contasController->createOnly([
+          'id_conta' => $result['id'],
+          'id_empresa' => $empresa['id'] ?? null,
+          'id_cliente' => null,
+          'id_forma' => $boleto['id'] ?? null,
+          'descricao'  => 'Mensalidade do Sistema',
+          'valor' => $data['valor_mensal'] ?? 0.00,
+          'origem' => 'M',
+          'natureza' => 'D',
+          'condicao' => 'A',
+          'vencimento' => $data['vencimento'],
+          'observacoes' => 'Geração automática de conta de mensalidade do sistema',
+          'situacao' => 'PE',
+          'token_unico' => $tokenUnico,
         ]);
-      }
+
+        $mercadoPagoController = new MercadoPagoController();
+        $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
+          'valor' => floatval($data['valor_mensal'] ?? 0.00),
+          'descricao' => 'Mensalidade do Sistema', 
+          'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+          'responsavel' => $usuario['nome'] ?? 'Cliente',
+          'cnpj' => $empresa['cnpj'] ?? null,
+          'logradouro' => $empresa['logradouro'] ?? null,
+          'numero' => $empresa['numero'] ?? null,
+          'bairro' => $empresa['bairro'] ?? null,
+          'cidade' => $empresa['cidade'] ?? null,
+          'uf' => $empresa['uf'] ?? null,
+          'cep' => $empresa['cep'] ?? null,
+          'dataVencimento' => $data['vencimento'],
+        ]);
+
+        foreach ($contasGeradas as $key => $contaGerada) {
+          $contasController = new ContasController($contaGerada['id']);
+          $contasGeradas[$key] = $contasController->updateOnly([
+            'url_boleto' => $pagamentoBoleto['ticket_url'] ?? null,
+            'id_pagamento_mercado_pago' => $pagamentoBoleto['id'] ?? null,
+          ]);
+        }
+      } 
+
+      $result['formas_pagamento'] = $formas;
+      $result['mensalidades_geradas'] = $contasGeradas;
 
       http_response_code(200);
       echo json_encode($result);

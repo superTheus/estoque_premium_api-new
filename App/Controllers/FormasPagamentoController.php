@@ -109,20 +109,6 @@ class FormasPagamentoController extends ControllerBase
     {
         try {
             $result = $this->model->insert($data);
-
-            if ($result['situacao'] === 'PE' && $result['natureza'] === 'R' && $result['id_forma']) {
-                $conta = new ContasUsuariosModel($result['id_conta']);
-
-                if ($conta[''] === 2) {
-                    $newMercardoPagoController = new MercadoPagoController();
-                }
-
-                $formaPagamento = new FormasPagamentoModel($result['id_forma']);
-                if ($formaPagamento['id_tipo'] === 3) {
-                    $newMercardoPagoController = new MercadoPagoController();
-                }
-            }
-
             return $result;
         } catch (\Exception $e) {
             throw new \Exception($e->getMessage());
