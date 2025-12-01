@@ -101,6 +101,7 @@ class ContasUsuariosController extends ControllerBase
       $formas = [];
 
       $contasGeradas = [];
+      $geraFinanceiro = false;
 
       if ($result) {
         $clienteController = new ClientesController();
@@ -117,7 +118,7 @@ class ContasUsuariosController extends ControllerBase
           ]
         ]);
 
-        if(!$contaNova || !isset($contaNova[0])) {
+        if (!$contaNova || !isset($contaNova[0])) {
           throw new \Exception("Erro ao recuperar a conta recém criada.");
         }
 
@@ -162,7 +163,7 @@ class ContasUsuariosController extends ControllerBase
           "id_tipo" => 5,
           "descricao" => "Crediário",
         ]);
-        
+
         $operacoesController = new OperacoesController();
         $operacoesController->createOnly([
           "id_conta" => $result['id'],
@@ -183,6 +184,18 @@ class ContasUsuariosController extends ControllerBase
           "mov_estoque" => "E",
           "descricao" => "Entrada de Mercadoria",
         ]);
+
+        if (
+          isset($data['cnpj']) && $data['cnpj'] &&
+          isset($data['uf']) && $data['uf'] &&
+          isset($data['cidade']) && $data['cidade'] &&
+          isset($data['logradouro']) && $data['logradouro'] &&
+          isset($data['numero']) && $data['numero'] &&
+          isset($data['cep']) && $data['cep'] &&
+          isset($data['bairro']) && $data['bairro']
+        ) {
+          $geraFinanceiro = true;
+        }
 
         $contasAdms = $contasUsuariosController->findOnly([
           'filter' => [
@@ -207,7 +220,6 @@ class ContasUsuariosController extends ControllerBase
               ],
             ]);
 
-
             if ($forma && isset($forma[0])) {
               $forma = $forma[0];
             }
@@ -228,67 +240,73 @@ class ContasUsuariosController extends ControllerBase
               'id_conta' => $contaAdm['id'],
             ]);
 
-            $contasGeradas[] = $contasController->createOnly([
-              'id_conta' => $contaAdm['id'],
-              'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
-              'id_cliente' => $cliente['id'],
-              'id_forma' => $forma['id'] ?? null,
-              'descricao'  => 'Assinatura mensal - ' . $data['responsavel'],
-              'valor' => $data['valor_mensal'] ?? 0.00,
-              'origem' => 'M',
-              'natureza' => 'R',
-              'condicao' => 'A',
-              'vencimento' => $data['vencimento'],
-              'observacoes' => 'Geração automática de conta mensalidade',
-              'situacao' => 'PE',
-              'token_unico' => $tokenUnico,
+            if ($geraFinanceiro) {
+              $contasGeradas[] = $contasController->createOnly([
+                'id_conta' => $contaAdm['id'],
+                'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
+                'id_cliente' => $cliente['id'],
+                'id_forma' => $forma['id'] ?? null,
+                'descricao'  => 'Assinatura mensal - ' . $data['responsavel'],
+                'valor' => $data['valor_mensal'] ?? 0.00,
+                'origem' => 'M',
+                'natureza' => 'R',
+                'condicao' => 'A',
+                'vencimento' => $data['vencimento'],
+                'observacoes' => 'Geração automática de conta mensalidade',
+                'situacao' => 'PE',
+                'token_unico' => $tokenUnico,
+              ]);
+            }
+          }
+        }
+
+        if ($geraFinanceiro) {
+          $contasGeradas[] = $contasController->createOnly([
+            'id_conta' => $result['id'],
+            'id_empresa' => $empresa['id'] ?? null,
+            'id_cliente' => null,
+            'id_forma' => $boleto['id'] ?? null,
+            'descricao'  => 'Mensalidade do Sistema',
+            'valor' => $data['valor_mensal'] ?? 0.00,
+            'origem' => 'M',
+            'natureza' => 'D',
+            'condicao' => 'A',
+            'vencimento' => $data['vencimento'],
+            'observacoes' => 'Geração automática de conta de mensalidade do sistema',
+            'situacao' => 'PE',
+            'token_unico' => $tokenUnico,
+          ]);
+
+          $mercadoPagoController = new MercadoPagoController();
+          $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
+            'valor' => floatval($data['valor_mensal'] ?? 0.00),
+            'descricao' => 'Mensalidade do Sistema',
+            'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+            'responsavel' => $usuario['nome'] ?? 'Cliente',
+            'cnpj' => $empresa['cnpj'] ?? null,
+            'logradouro' => $empresa['logradouro'] ?? null,
+            'numero' => $empresa['numero'] ?? null,
+            'bairro' => $empresa['bairro'] ?? null,
+            'cidade' => $empresa['cidade'] ?? null,
+            'uf' => $empresa['uf'] ?? null,
+            'cep' => $empresa['cep'] ?? null,
+            'dataVencimento' => $data['vencimento'],
+          ]);
+
+          foreach ($contasGeradas as $key => $contaGerada) {
+            $contasController = new ContasController($contaGerada['id']);
+            $contasGeradas[$key] = $contasController->updateOnly([
+              'url_boleto' => $pagamentoBoleto['ticket_url'] ?? null,
+              'id_pagamento_mercado_pago' => $pagamentoBoleto['id'] ?? null,
             ]);
           }
         }
 
-        $contasGeradas[] = $contasController->createOnly([
-          'id_conta' => $result['id'],
-          'id_empresa' => $empresa['id'] ?? null,
-          'id_cliente' => null,
-          'id_forma' => $boleto['id'] ?? null,
-          'descricao'  => 'Mensalidade do Sistema',
-          'valor' => $data['valor_mensal'] ?? 0.00,
-          'origem' => 'M',
-          'natureza' => 'D',
-          'condicao' => 'A',
-          'vencimento' => $data['vencimento'],
-          'observacoes' => 'Geração automática de conta de mensalidade do sistema',
-          'situacao' => 'PE',
-          'token_unico' => $tokenUnico,
-        ]);
-
-        $mercadoPagoController = new MercadoPagoController();
-        $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
-          'valor' => floatval($data['valor_mensal'] ?? 0.00),
-          'descricao' => 'Mensalidade do Sistema', 
-          'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
-          'responsavel' => $usuario['nome'] ?? 'Cliente',
-          'cnpj' => $empresa['cnpj'] ?? null,
-          'logradouro' => $empresa['logradouro'] ?? null,
-          'numero' => $empresa['numero'] ?? null,
-          'bairro' => $empresa['bairro'] ?? null,
-          'cidade' => $empresa['cidade'] ?? null,
-          'uf' => $empresa['uf'] ?? null,
-          'cep' => $empresa['cep'] ?? null,
-          'dataVencimento' => $data['vencimento'],
-        ]);
-
-        foreach ($contasGeradas as $key => $contaGerada) {
-          $contasController = new ContasController($contaGerada['id']);
-          $contasGeradas[$key] = $contasController->updateOnly([
-            'url_boleto' => $pagamentoBoleto['ticket_url'] ?? null,
-            'id_pagamento_mercado_pago' => $pagamentoBoleto['id'] ?? null,
-          ]);
+        $result['formas_pagamento'] = $formas;
+        if ($geraFinanceiro) {
+          $result['mensalidades_geradas'] = $contasGeradas;
         }
-      } 
-
-      $result['formas_pagamento'] = $formas;
-      $result['mensalidades_geradas'] = $contasGeradas;
+      }
 
       http_response_code(200);
       echo json_encode($result);
