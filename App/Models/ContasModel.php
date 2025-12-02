@@ -13,6 +13,14 @@ class ContasModel extends BaseModel
 
     public function __construct($id = null)
     {
+        $this->relationConfig = [
+            [
+                'property' => 'conta_pagamento',
+                'model' => ContasPagamentoModel::class,
+                'min_count' => 0,
+                'foreign_key' => 'id_conta',
+            ]
+        ];
         parent::__construct($id);
     }
 
@@ -222,7 +230,6 @@ class ContasModel extends BaseModel
             $newId = $this->conn->lastInsertId();
             $this->attributes['id'] = $newId;
             $this->findById($newId);
-
             foreach ($this->relationConfig as $relation) {
                 $property = $relation['property'];
 

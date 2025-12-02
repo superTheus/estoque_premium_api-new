@@ -7,10 +7,10 @@ use App\Models\BaseModel;
 use PDO;
 use PDOException;
 
-class ClientesModel extends BaseModel
+class ContasPagamentoModel extends BaseModel
 {
     private $attributes = [];
-    protected $table = 'clientes';
+    protected $table = 'conta_pagamento';
 
     public function __construct($id = null)
     {
@@ -39,30 +39,6 @@ class ClientesModel extends BaseModel
         }
 
         throw new \BadMethodCallException("Método {$method} não existe");
-    }
-
-    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
-    {
-        try {
-            $queryBuilder = new QueryBuilder($this->conn, "{$this->table}");
-            $result = $queryBuilder->select("*")
-                ->multipleOrWhere([
-                    ["{$this->table}.nome", "%$searchTerm%", 'LIKE'],
-                    ["{$this->table}.razao_social", "%$searchTerm%", 'LIKE'],
-                    ["{$this->table}.apelido", "%$searchTerm%", 'LIKE'],
-                    ["{$this->table}.rg", "%$searchTerm%", 'LIKE'],
-                    ["{$this->table}.inscricao_estadual", "%$searchTerm%", 'LIKE'],
-                    ["{$this->table}.email", "%$searchTerm%", 'LIKE'],
-                    ["{$this->table}.telefone", "%$searchTerm%", 'LIKE'],
-                    ["{$this->table}.celular", "%$searchTerm%", 'LIKE'],
-                    ["{$this->table}.documento", "%$searchTerm%", 'LIKE']
-                ])->where("{$this->table}.id_conta", $idConta)
-                ->limit($limit)->offset($offset)->execute();
-
-            return $result;
-        } catch (\PDOException $e) {
-            throw new \PDOException($e->getMessage());
-        }
     }
 
     public function findById($id)
@@ -182,6 +158,7 @@ class ClientesModel extends BaseModel
     public function insert($data)
     {
         try {
+
             $colunas = [];
             $valores = [];
             $placeholders = [];

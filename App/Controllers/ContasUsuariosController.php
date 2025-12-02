@@ -99,33 +99,65 @@ class ContasUsuariosController extends ControllerBase
 
       $result = $this->model->insert($data);
       $formas = [];
-      if($result) {
+
+      $contasGeradas = [];
+      $geraFinanceiro = false;
+
+      if ($result) {
+        $clienteController = new ClientesController();
+        $contasController = new ContasController();
+        $contasUsuariosController = new ContasUsuariosController();
+
+        $contaNova = $contasUsuariosController->findOnly([
+          'filter' => [
+            'id' => $result['id']
+          ],
+          'includes' => [
+            'empresas' => true,
+            'usuarios' => true
+          ]
+        ]);
+
+        if (!$contaNova || !isset($contaNova[0])) {
+          throw new \Exception("Erro ao recuperar a conta recém criada.");
+        }
+
+        $contaNova = $contaNova[0];
+        $empresa = $contaNova['empresas'][0] ?? null;
+        $usuario = $contaNova['usuarios'][0] ?? null;
+
         $formaPagamentoController = new FormasPagamentoController();
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 1,
           "descricao" => "Dinheiro",
         ]);
+
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 3,
           "descricao" => "Cartão de Crédito",
         ]);
+
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 4,
           "descricao" => "Cartão de Débito",
         ]);
+
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 13,
           "descricao" => "Pix",
         ]);
-        $formas[] = $formaPagamentoController->createOnly([
+
+        $boleto = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 11,
           "descricao" => "Boleto",
         ]);
+
+        $formas[] = $boleto;
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 5,
@@ -140,7 +172,7 @@ class ContasUsuariosController extends ControllerBase
           "natureza_operacao" => "V",
           "tipo" => "R",
           "mov_estoque" => "S",
-          "descricao" => "Venda de Mercadoria", 
+          "descricao" => "Venda de Mercadoria",
         ]);
 
         $operacoesController->createOnly([
@@ -152,29 +184,140 @@ class ContasUsuariosController extends ControllerBase
           "mov_estoque" => "E",
           "descricao" => "Entrada de Mercadoria",
         ]);
-        
-        $newCliente = [
-          'tipo_cliente' => 'PJ',
-          'nome' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
-          'apelido' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
-          'documento' => $data['empresas'][0]['cnpj'] ?? null,
-          'razao_social' => $data['empresas'][0]['razao_social'] ?? null,
-          'email' => $data['empresas'][0]['email'] ?? null,
-          'cep' => $data['empresas'][0]['cep'] ?? null,
-          'logradouro' => $data['empresas'][0]['logradouro'] ?? null,
-          'numero' => $data['empresas'][0]['numero'] ?? null,
-          'bairro' => $data['empresas'][0]['bairro'] ?? null,
-          'cidade' => $data['empresas'][0]['cidade'] ?? null,
-          'estado' => $data['empresas'][0]['uf'] ?? null,
-        ];
 
-        $mercadoPagoController = new MercadoPagoController();
-        $mercadoPagoController->gerarBoletoApenas([
-          'id_conta' => $result['id'],
-          'forma_pagamento' => $formas[5]['id']
-        ], $newCliente);
+        if (
+          isset($data['cnpj']) && $data['cnpj'] &&
+          isset($data['uf']) && $data['uf'] &&
+          isset($data['cidade']) && $data['cidade'] &&
+          isset($data['logradouro']) && $data['logradouro'] &&
+          isset($data['numero']) && $data['numero'] &&
+          isset($data['cep']) && $data['cep'] &&
+          isset($data['bairro']) && $data['bairro']
+        ) {
+          $geraFinanceiro = true;
+        }
+
+        $contasAdms = $contasUsuariosController->findOnly([
+          'filter' => [
+            'tipo' => 'A',
+            'deletado' => 'N',
+            'status' => 'A',
+          ],
+          'includes' => [
+            'empresas' => true,
+            'usuarios' => true
+          ]
+        ]);
+
+        $tokenUnico = uniqid(date('YmdHis'));
+
+        if ($contasAdms) {
+          foreach ($contasAdms as $contaAdm) {
+            $forma = $formaPagamentoController->findOnly([
+              "filter" => [
+                "id_conta" => $contaAdm['id'],
+                "id_tipo" => 11
+              ],
+            ]);
+
+            if ($forma && isset($forma[0])) {
+              $forma = $forma[0];
+            }
+
+            $cliente = $clienteController->createOnly([
+              'tipo_cliente' => 'PJ',
+              'nome' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+              'apelido' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+              'documento' => $data['empresas'][0]['cnpj'] ?? null,
+              'razao_social' => $data['empresas'][0]['razao_social'] ?? null,
+              'email' => $data['empresas'][0]['email'] ?? null,
+              'cep' => $data['empresas'][0]['cep'] ?? null,
+              'logradouro' => $data['empresas'][0]['logradouro'] ?? null,
+              'numero' => $data['empresas'][0]['numero'] ?? null,
+              'bairro' => $data['empresas'][0]['bairro'] ?? null,
+              'cidade' => $data['empresas'][0]['cidade'] ?? null,
+              'estado' => $data['empresas'][0]['uf'] ?? null,
+              'id_conta' => $contaAdm['id'],
+            ]);
+
+            if ($geraFinanceiro) {
+              $contasGeradas[] = $contasController->createOnly([
+                'id_conta' => $contaAdm['id'],
+                'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
+                'id_cliente' => $cliente['id'],
+                'id_forma' => $forma['id'] ?? null,
+                'descricao'  => 'Assinatura mensal - ' . $data['responsavel'],
+                'valor' => $data['valor_mensal'] ?? 0.00,
+                'origem' => 'M',
+                'natureza' => 'R',
+                'condicao' => 'A',
+                'vencimento' => $data['vencimento'],
+                'observacoes' => 'Geração automática de conta mensalidade',
+                'situacao' => 'PE',
+                'token_unico' => $tokenUnico,
+              ]);
+            }
+          }
+        }
+
+        if ($geraFinanceiro) {
+          $contasGeradas[] = $contasController->createOnly([
+            'id_conta' => $result['id'],
+            'id_empresa' => $empresa['id'] ?? null,
+            'id_cliente' => null,
+            'id_forma' => $boleto['id'] ?? null,
+            'descricao'  => 'Mensalidade do Sistema',
+            'valor' => $data['valor_mensal'] ?? 0.00,
+            'origem' => 'M',
+            'natureza' => 'D',
+            'condicao' => 'A',
+            'vencimento' => $data['vencimento'],
+            'observacoes' => 'Geração automática de conta de mensalidade do sistema',
+            'situacao' => 'PE',
+            'token_unico' => $tokenUnico,
+          ]);
+
+          $dias = $this->diasFaltantes($data['vencimento']);
+
+          if ($dias < 28) {
+            $mercadoPagoController = new MercadoPagoController();
+            $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
+              'valor' => floatval($data['valor_mensal'] ?? 0.00),
+              'descricao' => 'Mensalidade do Sistema',
+              'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+              'responsavel' => $usuario['nome'] ?? 'Cliente',
+              'cnpj' => $empresa['cnpj'] ?? null,
+              'logradouro' => $empresa['logradouro'] ?? null,
+              'numero' => $empresa['numero'] ?? null,
+              'bairro' => $empresa['bairro'] ?? null,
+              'cidade' => $empresa['cidade'] ?? null,
+              'uf' => $empresa['uf'] ?? null,
+              'cep' => $empresa['cep'] ?? null,
+              'dataVencimento' => $data['vencimento'],
+            ]);
+
+            foreach ($contasGeradas as $key => $contaGerada) {
+              $novasContasController = new ContasController($contaGerada['id']);
+              $contasGeradas[$key] = $novasContasController->updateOnly([
+                'descricao' => $contaGerada['descricao'],
+                'conta_pagamento' => [
+                  'create' => [
+                    [
+                      'id_pagamento' => $pagamentoBoleto['id'],
+                    ]
+                  ]
+                ]
+              ]);
+            }
+          }
+        }
+
+        $result['formas_pagamento'] = $formas;
+        if ($geraFinanceiro) {
+          $result['mensalidades_geradas'] = $contasGeradas;
+        }
       }
-      
+
       http_response_code(200);
       echo json_encode($result);
     } catch (\Exception $e) {
@@ -283,6 +426,33 @@ class ContasUsuariosController extends ControllerBase
     } catch (\Exception $e) {
       http_response_code(500);
       echo json_encode(["message" => $e->getMessage()]);
+    }
+  }
+
+  /**
+   * Calcula quantos dias faltam para uma determinada data
+   * 
+   * @param string $data Data no formato YYYY-MM-DD
+   * @return int Número de dias faltantes (negativo se a data já passou)
+   */
+  private function diasFaltantes($data)
+  {
+    try {
+      $dataFutura = new \DateTime($data);
+      $dataAtual = new \DateTime();
+
+      $dataFutura->setTime(0, 0, 0);
+      $dataAtual->setTime(0, 0, 0);
+
+      $diferenca = $dataAtual->diff($dataFutura);
+
+      if ($dataFutura < $dataAtual) {
+        return -$diferenca->days;
+      }
+
+      return $diferenca->days;
+    } catch (\Exception $e) {
+      throw new \Exception("Data inválida: " . $e->getMessage());
     }
   }
 }
