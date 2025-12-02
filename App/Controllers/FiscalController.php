@@ -55,7 +55,16 @@ class FiscalController extends ApiModel
         return;
       }
 
+      
+      
       $venda = $response[0];
+
+      if(!isset($venda['clientes'][0])) {
+        throw new \Exception(json_encode([
+          "error" => "NFe não pode ser emitida sem cliente ou para consumidor final, nesse caso tente emitir uma NFCe."
+        ]));
+      }
+
       $empresa = $venda['empresas'][0];
       $operacao = $venda['operacoes'][0];
       $cliente = $venda['clientes'][0];
@@ -157,7 +166,7 @@ class FiscalController extends ApiModel
           "nota_emitida" => "S",
           "status_nota" => "F",
           "messagem_error" => $messagemErro,
-          "xml" => $errors['xml']
+          "xml" => isset($errors['xml']) ? $errors['xml'] : null
         ]);
       }
 
