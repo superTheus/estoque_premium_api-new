@@ -125,7 +125,7 @@ class ContasController extends ControllerBase
   }
 
   public function updateOnly($data)
-  { 
+  {
     try {
       $currentData = $this->model->current();
       if ($currentData) {
@@ -229,11 +229,15 @@ class ContasController extends ControllerBase
       }
 
       $contaUsuariosController = new ContasUsuariosController();
+      $formasPagamentosController = new FormasPagamentoController();
+      $clientesController = new ClientesController();
+
       $conta = $contaUsuariosController->findOnly([
         'filter' => ['id' => $data['id_conta']],
         'limit' => 1,
         'includes' => [
-          'empresas' => true
+          'empresas' => true,
+          'usuarios' => true
         ]
       ]);
 
@@ -248,9 +252,10 @@ class ContasController extends ControllerBase
       }
 
       $empresa = $conta['empresas'][0];
+      $usuario = $conta['usuarios'][0];
 
-      foreach($conta['empresas'] as $key => $value) {
-        if($value['principal'] === 'S') {
+      foreach ($conta['empresas'] as $key => $value) {
+        if ($value['principal'] === 'S') {
           $empresa = $value;
         }
       }
@@ -265,15 +270,14 @@ class ContasController extends ControllerBase
         ],
         'limit' => 1
       ]);
-      
+
       if ($contaExistente && count($contaExistente) > 0) {
         $contaExistente = $contaExistente[0];
 
         $dataVencimentoConta = DateTime::createFromFormat('Y-m-d', $contaExistente['vencimento']);
         $hoje = new DateTime('today');
 
-        if($dataVencimentoConta <= $hoje) {
-          $novaDataVencimento = $dataVencimentoConta->modify('+1 month')->format('Y-m-d');
+        if ($dataVencimentoConta <= $hoje) {
           $novaDataVencimento = date('Y-m-d', strtotime('+1 day'));
 
           $novaContaController = new ContasController($contaExistente['id']);
@@ -282,37 +286,192 @@ class ContasController extends ControllerBase
           ]);
         }
       } else {
-        // $contaExistente = $this->createOnly([
-        //   'id_conta' => $data['id_conta'],
-        //   'id_empresa' => $empresa['id'],
-        //   'id_cliente' => $conta['id_cliente'],
-        //   'id_venda' => $conta['id_venda'],
-        //   'id_conta' => $data['id_conta'],
-        //   'descricao' => 'Pagamento de Conta - ' . $conta['descricao'],
-        //   'valor' => $conta['valor_mensal'],
-        //   'data_vencimento' => date('Y-m-d', strtotime('+1 day')),
-        //   'origem' => 'M',
-        //   'natureza' => 'D',
-        //   'situacao' => 'PE'
-        // ]);
+        $forma = $formasPagamentosController->findOnly([
+          'filter' => [
+            'id_conta' => $data['id_conta'],
+            'id_tipo' => 11
+          ],
+          'limit' => 1
+        ]);
+
+        if ($forma && count($forma) > 0) {
+          $forma = $forma[0];
+        } else {
+          $forma = null;
+        }
+
+        $contasAdms = $contaUsuariosController->findOnly([
+          'filter' => [
+            'tipo' => 'A',
+            'deletado' => 'N',
+            'status' => 'A',
+          ],
+          'includes' => [
+            'empresas' => true,
+            'usuarios' => true
+          ]
+        ]);
+
+        $tokenUnico = uniqid(date('YmdHis'));
+
+        $vencimento = $conta['vencimento'] ?? date('Y-m-d', strtotime('+1 day'));
+
+        $dataVencimentoConta = DateTime::createFromFormat('Y-m-d', $vencimento);
+        $hoje = new DateTime('today');
+
+        if ($dataVencimentoConta <= $hoje) {
+          $vencimento = date('Y-m-d', strtotime('+1 day'));
+        }
+
+        $contasGeradas = [];
+
+        if ($contasAdms) {
+          foreach ($contasAdms as $contaAdm) {
+            $forma = $formasPagamentosController->findOnly([
+              "filter" => [
+                "id_conta" => $contaAdm['id'],
+                "id_tipo" => 11
+              ],
+            ]);
+
+            if ($forma && isset($forma[0])) {
+              $forma = $forma[0];
+            }
+
+            $cliente = $clientesController->findOnly([
+              'filter' => [
+                'documento' => $empresa['cnpj'],
+                'id_conta' => $contaAdm['id']
+              ],
+              'limit' => 1
+            ]);
+
+            if ($cliente && count($cliente) > 0) {
+              $cliente = $cliente[0];
+            } else {
+              $cliente = null;
+            }
+
+            $contasGeradas[] = $contaController->createOnly([
+              'id_conta' => $contaAdm['id'],
+              'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
+              'id_cliente' => $cliente ? $cliente['id'] : null,
+              'id_forma' => $forma['id'] ?? null,
+              'descricao'  => 'Assinatura mensal - ' . $conta['responsavel'],
+              'valor' => $conta['valor_mensal'] ?? 0.00,
+              'origem' => 'M',
+              'natureza' => 'R',
+              'condicao' => 'A',
+              'vencimento' => $vencimento,
+              'observacoes' => 'Geração automática de conta mensalidade',
+              'situacao' => 'PE',
+              'token_unico' => $tokenUnico,
+            ]);
+          }
+        }
+
+        $contaExistente = $this->createOnly([
+          'id_conta' => $data['id_conta'],
+          'id_empresa' => $empresa['id'],
+          'id_conta' => $data['id_conta'],
+          'id_forma' => $forma ? $forma['id'] : null,
+          'descricao' => 'Mensalidade Sistema',
+          'valor' => floatval($conta['valor_mensal']),
+          'vencimento' => $vencimento,
+          'observacoes' => 'Geração automática de conta para pagamento da mensalidade do sistema',
+          'origem' => 'M',
+          'natureza' => 'D',
+          'situacao' => 'PE',
+          'token_unico' => $tokenUnico,
+        ]);
+        $contasGeradas[] = $contaExistente;
+
+        $mercadoPagoController = new MercadoPagoController();
+        $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
+          'valor' => floatval($conta['valor_mensal'] ?? 0.00),
+          'descricao' => 'Mensalidade do Sistema',
+          'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+          'responsavel' => $usuario['nome'] ?? 'Cliente',
+          'cnpj' => $empresa['cnpj'] ?? null,
+          'logradouro' => $empresa['logradouro'] ?? null,
+          'numero' => $empresa['numero'] ?? null,
+          'bairro' => $empresa['bairro'] ?? null,
+          'cidade' => $empresa['cidade'] ?? null,
+          'uf' => $empresa['uf'] ?? null,
+          'cep' => $empresa['cep'] ?? null,
+          'dataVencimento' => $vencimento,
+        ]);
+
+        foreach ($contasGeradas as $key => $contaGerada) {
+          $novasContasController = new ContasController($contaGerada['id']);
+          $contasGeradas[$key] = $novasContasController->updateOnly([
+            'descricao' => $contaGerada['descricao'],
+            'conta_pagamento' => [
+              'create' => [
+                [
+                  'id_pagamento' => $pagamentoBoleto['id'],
+                ]
+              ]
+            ]
+          ]);
+        }
       }
 
+      $mercadoPagoController = new MercadoPagoController();
+      $pixGerado = $mercadoPagoController->gerarPixApenas([
+        'valor' => floatval($contaExistente['valor'] ?? 0.00),
+        'descricao' => 'Cobrança de Mensalidade do Sistema',
+        'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+        'nome' => $usuario['nome'] ?? 'Cliente',
+        'cnpj' => $empresa['cnpj'] ?? null,
+        'logradouro' => $empresa['logradouro'] ?? null,
+        'numero' => $empresa['numero'] ?? null,
+        'bairro' => $empresa['bairro'] ?? null,
+        'cidade' => $empresa['cidade'] ?? null,
+        'uf' => $empresa['uf'] ?? null,
+        'cep' => $empresa['cep'] ?? null,
+        'dataVencimento' => $contaExistente['vencimento'],
+      ]);
 
-      // http_response_code(200);
-      // echo json_encode([
-      //   "success" => true,
-      //   "message" => "PIX gerado com sucesso",
-      //   "data" => [
-      //     "id" => $resultado['id'],
-      //     "payment_id" => $payment->id,
-      //     "status" => $payment->status,
-      //     "valor" => $valorMensal,
-      //     "qr_code" => $payment->point_of_interaction->transaction_data->qr_code ?? null,
-      //     "qr_code_base64" => $payment->point_of_interaction->transaction_data->qr_code_base64 ?? null,
-      //     "ticket_url" => $payment->point_of_interaction->transaction_data->ticket_url ?? null,
-      //     "expiration_date" => $payment->date_of_expiration ?? null
-      //   ]
-      // ]);
+      $contaExistenteController = new ContasController($contaExistente['id']);
+      $contaExistente = $contaExistenteController->updateOnly([
+        'descricao' => $contaExistente['descricao'],
+        'conta_pagamento' => [
+          'create' => [
+            [
+              "id_pagamento" => $pixGerado['id'],
+            ]
+          ]
+        ]
+      ]);
+
+      $contasAssociadas = $contaController->findOnly([
+        'filter' => [
+          'token_unico' => $contaExistente['token_unico']
+        ]
+      ]);
+
+      foreach ($contasAssociadas as $key => $contaAssociada) {
+        if ($contaAssociada['id'] !== $contaExistente['id']) {
+          $contaAssociadaController = new ContasController($contaAssociada['id']);
+          $contaAssociada = $contaAssociadaController->updateOnly([
+            'descricao' => $contaAssociada['descricao'],
+            'conta_pagamento' => [
+              'create' => [
+                [
+                  "id_pagamento" => $pixGerado['id'],
+                ]
+              ]
+            ]
+          ]);
+        }
+      }
+
+      http_response_code(200);
+      echo json_encode([
+        "conta" => $contaExistente,
+        "pix" => $pixGerado
+      ]);
     } catch (\Exception $e) {
       http_response_code(500);
       echo json_encode([
