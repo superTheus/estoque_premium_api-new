@@ -94,73 +94,32 @@ class MercadoPagoController extends ControllerBase
         }
     }
 
-    /**
-     * Gera um pagamento PIX para uma conta de usuário
-     * Recebe: { "id_conta": 123 }
-     */
-    public function gerarPix($data)
+    public function gerarPixApenas($data)
     {
         try {
-            if (!isset($data['id_conta']) || empty($data['id_conta'])) {
-                throw new \Exception("O ID da conta é obrigatório");
-            }
-            $contaController = new ContasUsuariosController();
-            $conta = $contaController->findOnly([
-                'filter' => ['id' => $data['id_conta']],
-                'limit' => 1,
-                'includes' => [
-                    'empresas' => true
-                ]
-            ]);
-
-            if (count($conta) > 0) {
-                $conta = $conta[0];
-            } else {
-                $conta = null;
-            }
-
-            if (empty($conta)) {
-                throw new \Exception("Conta não encontrada");
-            }
-
-            if (!isset($conta['valor_mensal']) || empty($conta['valor_mensal'])) {
-                throw new \Exception("Valor mensal não definido para esta conta");
-            }
-
-            $valorMensal = floatval($conta['valor_mensal']);
-
-            if ($valorMensal <= 0) {
-                throw new \Exception("Valor mensal inválido");
-            }
-
-            $empresa = $conta['empresas'][0];
-
-            // Criar o pagamento PIX no Mercado Pago
             $client = new PaymentClient();
 
             $paymentData = [
-                "transaction_amount" => $valorMensal,
-                "description" => "Assinatura mensal - " . ($conta['responsavel'] ?? 'Sistema'),
+                "transaction_amount" => $data['valor'],
+                "description" => $data['descricao'],
                 "payment_method_id" => "pix",
                 "payer" => [
-                    "email" => $conta['email'] ?? "pagamento@sistema.com",
-                    "first_name" => $conta['responsavel'] ?? "Cliente",
+                    "email" => $data['email'],
+                    "first_name" => $data['nome'],
                     "identification" => [
                         "type" => "CNPJ",
-                        "number" => $empresa['cnpj'] ?? "00000000000"
+                        "number" => $data['cnpj']
                     ]
                 ],
                 "notification_url" => $_ENV['URL_WEBHOOKS']
             ];
 
             $payment = $client->create($paymentData);
-
-            // Salvar o pagamento no banco de dados
+ 
             $pagamentoData = [
-                'id_conta' => $data['id_conta'],
                 'payment_id' => $payment->id,
                 'status' => $payment->status,
-                'valor' => $valorMensal,
+                'valor' => $data['valor'],
                 'qr_code' => $payment->point_of_interaction->transaction_data->qr_code ?? null,
                 'qr_code_base64' => $payment->point_of_interaction->transaction_data->qr_code_base64 ?? null,
                 'ticket_url' => $payment->point_of_interaction->transaction_data->ticket_url ?? null,
@@ -169,45 +128,9 @@ class MercadoPagoController extends ControllerBase
 
             $resultado = $this->model->insert($pagamentoData);
 
-            http_response_code(200);
-            echo json_encode([
-                "success" => true,
-                "message" => "PIX gerado com sucesso",
-                "data" => [
-                    "id" => $resultado['id'],
-                    "payment_id" => $payment->id,
-                    "status" => $payment->status,
-                    "valor" => $valorMensal,
-                    "qr_code" => $payment->point_of_interaction->transaction_data->qr_code ?? null,
-                    "qr_code_base64" => $payment->point_of_interaction->transaction_data->qr_code_base64 ?? null,
-                    "ticket_url" => $payment->point_of_interaction->transaction_data->ticket_url ?? null,
-                    "expiration_date" => $payment->date_of_expiration ?? null
-                ]
-            ]);
-        } catch (MPApiException $e) {
-            $apiResponse = $e->getApiResponse();
-            $content = $apiResponse ? $apiResponse->getContent() : null;
-
-            error_log("Erro MPApiException PIX: " . json_encode([
-                'message' => $e->getMessage(),
-                'status_code' => $e->getStatusCode(),
-                'content' => $content
-            ]));
-
-            http_response_code(500);
-            echo json_encode([
-                "success" => false,
-                "message" => "Erro na API do Mercado Pago: " . $e->getMessage(),
-                "status_code" => $e->getStatusCode(),
-                "details" => $content
-            ]);
+            return $resultado;
         } catch (\Exception $e) {
-            error_log("Erro Exception PIX: " . $e->getMessage());
-            http_response_code(500);
-            echo json_encode([
-                "success" => false,
-                "message" => $e->getMessage()
-            ]);
+            throw new \Exception($e->getMessage());
         }
     }
 

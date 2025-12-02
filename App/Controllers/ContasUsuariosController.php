@@ -277,28 +277,32 @@ class ContasUsuariosController extends ControllerBase
             'token_unico' => $tokenUnico,
           ]);
 
-          $mercadoPagoController = new MercadoPagoController();
-          $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
-            'valor' => floatval($data['valor_mensal'] ?? 0.00),
-            'descricao' => 'Mensalidade do Sistema',
-            'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
-            'responsavel' => $usuario['nome'] ?? 'Cliente',
-            'cnpj' => $empresa['cnpj'] ?? null,
-            'logradouro' => $empresa['logradouro'] ?? null,
-            'numero' => $empresa['numero'] ?? null,
-            'bairro' => $empresa['bairro'] ?? null,
-            'cidade' => $empresa['cidade'] ?? null,
-            'uf' => $empresa['uf'] ?? null,
-            'cep' => $empresa['cep'] ?? null,
-            'dataVencimento' => $data['vencimento'],
-          ]);
+          $dias = $this->diasFaltantes($data['vencimento']);
 
-          foreach ($contasGeradas as $key => $contaGerada) {
-            $contasController = new ContasController($contaGerada['id']);
-            $contasGeradas[$key] = $contasController->updateOnly([
-              'url_boleto' => $pagamentoBoleto['ticket_url'] ?? null,
-              'id_pagamento_mercado_pago' => $pagamentoBoleto['id'] ?? null,
+          if ($dias < 30) {
+            $mercadoPagoController = new MercadoPagoController();
+            $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
+              'valor' => floatval($data['valor_mensal'] ?? 0.00),
+              'descricao' => 'Mensalidade do Sistema',
+              'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+              'responsavel' => $usuario['nome'] ?? 'Cliente',
+              'cnpj' => $empresa['cnpj'] ?? null,
+              'logradouro' => $empresa['logradouro'] ?? null,
+              'numero' => $empresa['numero'] ?? null,
+              'bairro' => $empresa['bairro'] ?? null,
+              'cidade' => $empresa['cidade'] ?? null,
+              'uf' => $empresa['uf'] ?? null,
+              'cep' => $empresa['cep'] ?? null,
+              'dataVencimento' => $data['vencimento'],
             ]);
+
+            foreach ($contasGeradas as $key => $contaGerada) {
+              $contasController = new ContasController($contaGerada['id']);
+              $contasGeradas[$key] = $contasController->updateOnly([
+                'url_boleto' => $pagamentoBoleto['ticket_url'] ?? null,
+                'id_pagamento_mercado_pago' => $pagamentoBoleto['id'] ?? null,
+              ]);
+            }
           }
         }
 
@@ -416,6 +420,33 @@ class ContasUsuariosController extends ControllerBase
     } catch (\Exception $e) {
       http_response_code(500);
       echo json_encode(["message" => $e->getMessage()]);
+    }
+  }
+
+  /**
+   * Calcula quantos dias faltam para uma determinada data
+   * 
+   * @param string $data Data no formato YYYY-MM-DD
+   * @return int Número de dias faltantes (negativo se a data já passou)
+   */
+  private function diasFaltantes($data)
+  {
+    try {
+      $dataFutura = new \DateTime($data);
+      $dataAtual = new \DateTime();
+
+      $dataFutura->setTime(0, 0, 0);
+      $dataAtual->setTime(0, 0, 0);
+
+      $diferenca = $dataAtual->diff($dataFutura);
+
+      if ($dataFutura < $dataAtual) {
+        return -$diferenca->days;
+      }
+
+      return $diferenca->days;
+    } catch (\Exception $e) {
+      throw new \Exception("Data inválida: " . $e->getMessage());
     }
   }
 }

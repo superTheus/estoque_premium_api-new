@@ -564,34 +564,42 @@ class Routers
                 });
             });
 
-            $router->mount('/mercadopago', function () use ($router) {
+            // $router->mount('/mercadopago', function () use ($router) {
+            //     $router->post('/gerar-pix', function () {
+            //         $mercadoPagoController = new MercadoPagoController();
+            //         $data = json_decode(file_get_contents('php://input'), true);
+            //         $mercadoPagoController->gerarPix($data);
+            //     });
+
+            //     $router->post('/gerar-boleto', function () {
+            //         $mercadoPagoController = new MercadoPagoController();
+            //         $data = json_decode(file_get_contents('php://input'), true);
+            //         $mercadoPagoController->gerarBoleto($data);
+            //     });
+
+            //     $router->post('/consultar-pagamento', function () {
+            //         $mercadoPagoController = new MercadoPagoController();
+            //         $data = json_decode(file_get_contents('php://input'), true);
+            //         $mercadoPagoController->consultarPagamento($data);
+            //     });
+
+            //     $router->get('/cancelar-pagamento/{id}', function ($id) {
+            //         $mercadoPagoController = new MercadoPagoController($id);
+            //         $mercadoPagoController->cancelarPagamento();
+            //     });
+
+            //     $router->post('/listar-pagamentos', function () {
+            //         $mercadoPagoController = new MercadoPagoController();
+            //         $data = json_decode(file_get_contents('php://input'), true);
+            //         $mercadoPagoController->find($data);
+            //     });
+            // });
+
+            $router->mount('/pagamento', function () use ($router) {
                 $router->post('/gerar-pix', function () {
-                    $mercadoPagoController = new MercadoPagoController();
+                    $contasController = new ContasController();
                     $data = json_decode(file_get_contents('php://input'), true);
-                    $mercadoPagoController->gerarPix($data);
-                });
-
-                $router->post('/gerar-boleto', function () {
-                    $mercadoPagoController = new MercadoPagoController();
-                    $data = json_decode(file_get_contents('php://input'), true);
-                    $mercadoPagoController->gerarBoleto($data);
-                });
-
-                $router->post('/consultar-pagamento', function () {
-                    $mercadoPagoController = new MercadoPagoController();
-                    $data = json_decode(file_get_contents('php://input'), true);
-                    $mercadoPagoController->consultarPagamento($data);
-                });
-
-                $router->get('/cancelar-pagamento/{id}', function ($id) {
-                    $mercadoPagoController = new MercadoPagoController($id);
-                    $mercadoPagoController->cancelarPagamento();
-                });
-
-                $router->post('/listar-pagamentos', function () {
-                    $mercadoPagoController = new MercadoPagoController();
-                    $data = json_decode(file_get_contents('php://input'), true);
-                    $mercadoPagoController->find($data);
+                    $contasController->pagamento($data);
                 });
             });
         });
@@ -683,7 +691,7 @@ class Routers
         $router->get('/utils/cnpj/{cnpj}', function ($cnpj) {
             try {
                 $resultado = \App\Models\UtilsModel::consultarCNPJ($cnpj);
-                
+
                 if ($resultado['success']) {
                     http_response_code(200);
                     echo json_encode($resultado);

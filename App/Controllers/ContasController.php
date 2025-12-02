@@ -184,9 +184,8 @@ class ContasController extends ControllerBase
         }
 
         $result = $this->model->update($data);
-        
-        if($currentData['situacao'] !== $result['situacao'] && $result['situacao']) {
-          
+
+        if ($currentData['situacao'] !== $result['situacao'] && $result['situacao']) {
         }
 
         return $result;
@@ -221,6 +220,90 @@ class ContasController extends ControllerBase
     } catch (\Exception $e) {
       http_response_code(500);
       echo json_encode(["message" => $e->getMessage()]);
+    }
+  }
+
+  public function pagamento($data)
+  {
+    try {
+      if (!isset($data['id_conta']) || empty($data['id_conta'])) {
+        throw new \Exception("O ID da conta é obrigatório");
+      }
+
+      $contaUsuariosController = new ContasUsuariosController();
+      $conta = $contaUsuariosController->findOnly([
+        'filter' => ['id' => $data['id_conta']],
+        'limit' => 1,
+        'includes' => [
+          'empresas' => true
+        ]
+      ]);
+
+      if (count($conta) > 0) {
+        $conta = $conta[0];
+      } else {
+        $conta = null;
+      }
+
+      if (empty($conta)) {
+        throw new \Exception("Conta não encontrada");
+      }
+
+      $contaController = new ContasController();
+      $contaExistente = $contaController->findOnly([
+        'filter' => [
+          'id_conta' => $data['id_conta'],
+          'origem' => 'M',
+          'natureza' => 'D',
+          'situacao' => 'PE'
+        ],
+        'limit' => 1
+      ]);
+
+      if ($contaExistente && count($contaExistente) > 0) {
+        $contaExistente = $contaExistente[0];
+
+        if($contaExistente['vencimento'] < date('Y-m-d')) {
+          throw new \Exception("Já existe um pagamento pendente para esta conta.");
+        }
+
+      } else {
+        $contaExistente = $this->createOnly([
+          'id_empresa' => $conta['id_empresa'],
+          'id_cliente' => $conta['id_cliente'],
+          'id_venda' => $conta['id_venda'],
+          'id_conta' => $data['id_conta'],
+          'descricao' => 'Pagamento de Conta - ' . $conta['descricao'],
+          'valor' => $conta['valor_mensal'],
+          'data_vencimento' => date('Y-m-d', strtotime('+1 day')),
+          'origem' => 'M',
+          'natureza' => 'D',
+          'situacao' => 'PE'
+        ]);
+      }
+
+
+      http_response_code(200);
+      echo json_encode([
+        "success" => true,
+        "message" => "PIX gerado com sucesso",
+        "data" => [
+          "id" => $resultado['id'],
+          "payment_id" => $payment->id,
+          "status" => $payment->status,
+          "valor" => $valorMensal,
+          "qr_code" => $payment->point_of_interaction->transaction_data->qr_code ?? null,
+          "qr_code_base64" => $payment->point_of_interaction->transaction_data->qr_code_base64 ?? null,
+          "ticket_url" => $payment->point_of_interaction->transaction_data->ticket_url ?? null,
+          "expiration_date" => $payment->date_of_expiration ?? null
+        ]
+      ]);
+    } catch (\Exception $e) {
+      http_response_code(500);
+      echo json_encode([
+        "success" => false,
+        "message" => $e->getMessage()
+      ]);
     }
   }
 
