@@ -55,11 +55,10 @@ class FiscalController extends ApiModel
         return;
       }
 
-      
-      
       $venda = $response[0];
 
-      if(!isset($venda['clientes'][0])) {
+      // Validar cliente obrigatório apenas para NFe
+      if (!isset($venda['clientes'][0]) && $tipo === 'NFE') {
         throw new \Exception(json_encode([
           "error" => "NFe não pode ser emitida sem cliente ou para consumidor final, nesse caso tente emitir uma NFCe."
         ]));
@@ -67,14 +66,58 @@ class FiscalController extends ApiModel
 
       $empresa = $venda['empresas'][0];
       $operacao = $venda['operacoes'][0];
-      $cliente = $venda['clientes'][0];
+      $cliente = isset($venda['clientes'][0]) ? $venda['clientes'][0] : null;
       $produtos = $venda['venda_produtos'];
       $pagamentos = $venda['venda_pagamentos'];
 
-      $cidade = $this->cidadesUnico($cliente['cidade']);
+      // Obter dados de cidade e endereço
+      $cidade = null;
+      $endereco = null;
 
-      if (!$cidade) {
-        throw new \Exception("Cidade do cliente não encontrada.");
+      if ($cliente) {
+        $cidade = $this->cidadesUnico($cliente['cidade']);
+        $endereco = [
+          "bairro" => $cliente['bairro'] ?? "",
+          "codigo_municipio" => $cidade['codigo_ibge'] ?? "",
+          "logradouro" => $cliente["logradouro"] ?? "",
+          "municipio" => $cliente["cidade"] ?? "",
+          "numero" => $cliente["numero"] ?? "S/N",
+          "uf" => $cliente["estado"] ?? "",
+          "cep" => $cliente["cep"] ?? ""
+        ];
+      } else {
+        // Para consumidor final (NFCE), usar dados da empresa (se disponível)
+        if (!empty($empresa['cidade'])) {
+          $cidadeEmpresa = $this->cidadesUnico($empresa['cidade']);
+          $endereco = [
+            "bairro" => $empresa['bairro'] ?? "",
+            "codigo_municipio" => $cidadeEmpresa['codigo_ibge'] ?? "",
+            "logradouro" => $empresa["logradouro"] ?? "",
+            "municipio" => $empresa["cidade"] ?? "",
+            "numero" => $empresa["numero"] ?? "S/N",
+            "uf" => $empresa["estado"] ?? "",
+            "cep" => $empresa["cep"] ?? ""
+          ];
+          $cidade = $cidadeEmpresa;
+        } else {
+          // Se não tiver informação de cidade/endereço
+          $endereco = [
+            "bairro" => "",
+            "codigo_municipio" => "",
+            "logradouro" => "",
+            "municipio" => "",
+            "numero" => "S/N",
+            "uf" => "",
+            "cep" => ""
+          ];
+        }
+      }
+
+      // Validar obrigatoriedade de cidade apenas para NFe
+      if (!$cidade && $tipo === 'NFE') {
+        throw new \Exception(json_encode([
+          "error" => "NFe requer informações de cidade/endereço. Certifique-se de que o cliente possui um endereço válido."
+        ]));
       }
 
       $produtosNota = [];
@@ -105,28 +148,36 @@ class FiscalController extends ApiModel
         ];
       }
 
-      $dadosEmissao = [
-        "cnpj" => $empresa['cnpj'],
-        "cfop" =>  $operacao['cfop_estadual'],
-        "operacao" => $operacao['descricao'],
-        "consumidor_final" => "S",
-        "observacao" => $venda['observacao_nota'],
-        "cliente" => [
+      $consumidorFinal = $cliente ? "N" : "S";
+      
+      $clienteData = null;
+      if ($cliente) {
+        $clienteData = [
           "documento" => $cliente["documento"],
           "nome" => $cliente["nome"],
           "tipo_documento" => strlen(preg_replace('/\D/', '', $cliente["documento"])) === 11 ? "CPF" : "CNPJ",
           "tipo_icms" => $cliente['icms'],
-          "endereco" => [
-            "bairro" => $cliente['bairro'],
-            "codigo_municipio" => $cidade['codigo_ibge'],
-            "logradouro" => $cliente["logradouro"],
-            "municipio" =>  $cliente["cidade"],
-            "numero" => $cliente["numero"],
-            "uf" => $cliente["estado"],
-            "cep" => $cliente["cep"]
-          ],
-          "inscricao_estadual" => $cliente["inscricao_estadual"]
-        ],
+          "endereco" => $endereco,
+          "inscricao_estadual" => $cliente["inscricao_estadual"] ?? ""
+        ];
+      } else {
+        $clienteData = [
+          "documento" => "00000000000",
+          "nome" => "CONSUMIDOR FINAL",
+          "tipo_documento" => "CPF",
+          "tipo_icms" => "RP",
+          "endereco" => $endereco,
+          "inscricao_estadual" => "ISENTO"
+        ];
+      }
+
+      $dadosEmissao = [
+        "cnpj" => $empresa['cnpj'],
+        "cfop" =>  $operacao['cfop_estadual'],
+        "operacao" => $operacao['descricao'],
+        "consumidor_final" => $consumidorFinal,
+        "observacao" => $venda['observacao_nota'],
+        "cliente" => $clienteData,
         "modoEmissao" => 1,
         "total" => $venda['total'],
         "troco" => $venda['total_troco'],
