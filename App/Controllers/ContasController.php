@@ -268,11 +268,30 @@ class ContasController extends ControllerBase
           'natureza' => 'D',
           'situacao' => 'PE'
         ],
+        "includes" => [
+          "conta_pagamento" => [
+            "includes" => [
+              "mercado_pago_pagamentos" => true
+            ]
+          ]
+        ],
         'limit' => 1
       ]);
 
+      $exiteBoleto = false;
+      $exitePix = false;
+
       if ($contaExistente && count($contaExistente) > 0) {
         $contaExistente = $contaExistente[0];
+
+        foreach ($contaExistente['conta_pagamento'] as $pagamento) {
+          if ($pagamento['mercado_pago_pagamentos']['tipo'] === 'B') {
+            $exiteBoleto = true;
+          }
+          if ($pagamento['mercado_pago_pagamentos']['tipo'] === 'P') {
+            $exitePix = true;
+          }
+        }
 
         $dataVencimentoConta = DateTime::createFromFormat('Y-m-d', $contaExistente['vencimento']);
         $hoje = new DateTime('today');
@@ -417,21 +436,23 @@ class ContasController extends ControllerBase
         }
       }
 
-      $mercadoPagoController = new MercadoPagoController();
-      $pixGerado = $mercadoPagoController->gerarPixApenas([
-        'valor' => floatval($contaExistente['valor'] ?? 0.00),
-        'descricao' => 'Cobrança de Mensalidade do Sistema',
-        'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
-        'nome' => $usuario['nome'] ?? 'Cliente',
-        'cnpj' => $empresa['cnpj'] ?? null,
-        'logradouro' => $empresa['logradouro'] ?? null,
-        'numero' => $empresa['numero'] ?? null,
-        'bairro' => $empresa['bairro'] ?? null,
-        'cidade' => $empresa['cidade'] ?? null,
-        'uf' => $empresa['uf'] ?? null,
-        'cep' => $empresa['cep'] ?? null,
-        'dataVencimento' => $contaExistente['vencimento'],
-      ]);
+      if (!$exitePix) {
+        $mercadoPagoController = new MercadoPagoController();
+        $pixGerado = $mercadoPagoController->gerarPixApenas([
+          'valor' => floatval($contaExistente['valor'] ?? 0.00),
+          'descricao' => 'Cobrança de Mensalidade do Sistema',
+          'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+          'nome' => $usuario['nome'] ?? 'Cliente',
+          'cnpj' => $empresa['cnpj'] ?? null,
+          'logradouro' => $empresa['logradouro'] ?? null,
+          'numero' => $empresa['numero'] ?? null,
+          'bairro' => $empresa['bairro'] ?? null,
+          'cidade' => $empresa['cidade'] ?? null,
+          'uf' => $empresa['uf'] ?? null,
+          'cep' => $empresa['cep'] ?? null,
+          'dataVencimento' => $contaExistente['vencimento'],
+        ]);
+      }
 
       $contaExistenteController = new ContasController($contaExistente['id']);
       $contaExistente = $contaExistenteController->updateOnly([
