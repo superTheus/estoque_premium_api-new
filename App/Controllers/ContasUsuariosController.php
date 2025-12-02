@@ -279,7 +279,7 @@ class ContasUsuariosController extends ControllerBase
 
           $dias = $this->diasFaltantes($data['vencimento']);
 
-          if ($dias < 30) {
+          if ($dias < 28) {
             $mercadoPagoController = new MercadoPagoController();
             $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
               'valor' => floatval($data['valor_mensal'] ?? 0.00),
@@ -297,10 +297,16 @@ class ContasUsuariosController extends ControllerBase
             ]);
 
             foreach ($contasGeradas as $key => $contaGerada) {
-              $contasController = new ContasController($contaGerada['id']);
-              $contasGeradas[$key] = $contasController->updateOnly([
-                'url_boleto' => $pagamentoBoleto['ticket_url'] ?? null,
-                'id_pagamento_mercado_pago' => $pagamentoBoleto['id'] ?? null,
+              $novasContasController = new ContasController($contaGerada['id']);
+              $contasGeradas[$key] = $novasContasController->updateOnly([
+                'descricao' => $contaGerada['descricao'],
+                'conta_pagamento' => [
+                  'create' => [
+                    [
+                      'id_pagamento' => $pagamentoBoleto['id'],
+                    ]
+                  ]
+                ]
               ]);
             }
           }

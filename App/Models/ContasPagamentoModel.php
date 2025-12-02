@@ -3,24 +3,17 @@
 namespace App\Models;
 
 use App\Models\BaseModel;
+
 use PDO;
 use PDOException;
 
-class ContasModel extends BaseModel
+class ContasPagamentoModel extends BaseModel
 {
     private $attributes = [];
-    protected $table = 'contas';
+    protected $table = 'conta_pagamento';
 
     public function __construct($id = null)
     {
-        $this->relationConfig = [
-            [
-                'property' => 'conta_pagamento',
-                'model' => ContasPagamentoModel::class,
-                'min_count' => 0,
-                'foreign_key' => 'id_conta',
-            ]
-        ];
         parent::__construct($id);
     }
 
@@ -46,35 +39,6 @@ class ContasModel extends BaseModel
         }
 
         throw new \BadMethodCallException("Método {$method} não existe");
-    }
-
-    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
-    {
-        try {
-            $queryBuilder = new QueryBuilder($this->conn, $this->table);
-            $result = $queryBuilder->select("DISTINCT {$this->table}.*")
-                ->leftJoin("empresas", "empresas.id = {$this->table}.id_conta")
-                ->leftJoin("clientes", "clientes.id = {$this->table}.id_cliente")
-                ->leftJoin("vendas", "clientes.id = {$this->table}.id_venda")
-                ->multipleOrWhere([
-                    ["{$this->table}.descricao", "%$searchTerm%", 'LIKE'],
-                    ["{$this->table}.valor", "%$searchTerm%", '='],
-                    ["empresas.cnpj", "%$searchTerm%", 'LIKE'],
-                    ["empresas.razao_social", "%$searchTerm%", 'LIKE'],
-                    ["empresas.nome_fantasia", "%$searchTerm%", 'LIKE'],
-                    ["empresas.inscricao_estadual", "%$searchTerm%", 'LIKE'],
-                    ["clientes.nome", "%$searchTerm%", 'LIKE'],
-                    ["clientes.apelido", "%$searchTerm%", 'LIKE'],
-                    ["clientes.razao_social", "%$searchTerm%", 'LIKE'],
-                    ["clientes.documento", "%$searchTerm%", 'LIKE'],
-                    ["clientes.documento", "%$searchTerm%", 'LIKE'],
-                    ["vendas.id", "%$searchTerm%", '='],
-                ])->limit($limit)->offset($offset)->execute();
-
-            return $result;
-        } catch (\PDOException $e) {
-            throw new \PDOException($e->getMessage());
-        }
     }
 
     public function findById($id)
@@ -194,6 +158,7 @@ class ContasModel extends BaseModel
     public function insert($data)
     {
         try {
+
             $colunas = [];
             $valores = [];
             $placeholders = [];
@@ -230,6 +195,7 @@ class ContasModel extends BaseModel
             $newId = $this->conn->lastInsertId();
             $this->attributes['id'] = $newId;
             $this->findById($newId);
+
             foreach ($this->relationConfig as $relation) {
                 $property = $relation['property'];
 

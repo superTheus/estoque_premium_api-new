@@ -595,7 +595,7 @@ class Routers
             //     });
             // });
 
-            $router->mount('/pagamento', function () use ($router) {
+            $router->mount('/pagamentos', function () use ($router) {
                 $router->post('/gerar-pix', function () {
                     $contasController = new ContasController();
                     $data = json_decode(file_get_contents('php://input'), true);
