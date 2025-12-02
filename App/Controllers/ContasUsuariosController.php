@@ -226,8 +226,8 @@ class ContasUsuariosController extends ControllerBase
 
             $cliente = $clienteController->createOnly([
               'tipo_cliente' => 'PJ',
-              'nome' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
-              'apelido' => $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+              'nome' => $data['responsavel'] . ' ' . $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+              'apelido' => $data['responsavel'] . ' ' . $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
               'documento' => $data['empresas'][0]['cnpj'] ?? null,
               'razao_social' => $data['empresas'][0]['razao_social'] ?? null,
               'email' => $data['empresas'][0]['email'] ?? null,
