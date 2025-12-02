@@ -436,7 +436,13 @@ class ContasController extends ControllerBase
         }
       }
 
+      // die(json_encode([
+      //   'exiteBoleto' => $exiteBoleto,
+      //   'exitePix' => $exitePix
+      // ]));
+
       if (!$exitePix) {
+        die("Entrou aqui");
         $mercadoPagoController = new MercadoPagoController();
         $pixGerado = $mercadoPagoController->gerarPixApenas([
           'valor' => floatval($contaExistente['valor'] ?? 0.00),
@@ -452,47 +458,111 @@ class ContasController extends ControllerBase
           'cep' => $empresa['cep'] ?? null,
           'dataVencimento' => $contaExistente['vencimento'],
         ]);
-      }
 
-      $contaExistenteController = new ContasController($contaExistente['id']);
-      $contaExistente = $contaExistenteController->updateOnly([
-        'descricao' => $contaExistente['descricao'],
-        'conta_pagamento' => [
-          'create' => [
-            [
-              "id_pagamento" => $pixGerado['id'],
-            ]
-          ]
-        ]
-      ]);
-
-      $contasAssociadas = $contaController->findOnly([
-        'filter' => [
-          'token_unico' => $contaExistente['token_unico']
-        ]
-      ]);
-
-      foreach ($contasAssociadas as $key => $contaAssociada) {
-        if ($contaAssociada['id'] !== $contaExistente['id']) {
-          $contaAssociadaController = new ContasController($contaAssociada['id']);
-          $contaAssociada = $contaAssociadaController->updateOnly([
-            'descricao' => $contaAssociada['descricao'],
-            'conta_pagamento' => [
-              'create' => [
-                [
-                  "id_pagamento" => $pixGerado['id'],
-                ]
+        $contaExistenteController = new ContasController($contaExistente['id']);
+        $contaExistente = $contaExistenteController->updateOnly([
+          'descricao' => $contaExistente['descricao'],
+          'conta_pagamento' => [
+            'create' => [
+              [
+                "id_pagamento" => $pixGerado['id'],
               ]
             ]
-          ]);
+          ]
+        ]);
+
+        $contasAssociadas = $contaController->findOnly([
+          'filter' => [
+            'token_unico' => $contaExistente['token_unico']
+          ]
+        ]);
+
+        foreach ($contasAssociadas as $key => $contaAssociada) {
+          if ($contaAssociada['id'] !== $contaExistente['id']) {
+            $contaAssociadaController = new ContasController($contaAssociada['id']);
+            $contaAssociada = $contaAssociadaController->updateOnly([
+              'descricao' => $contaAssociada['descricao'],
+              'conta_pagamento' => [
+                'create' => [
+                  [
+                    "id_pagamento" => $pixGerado['id'],
+                  ]
+                ]
+              ]
+            ]);
+          }
         }
       }
 
-      http_response_code(200);
-      echo json_encode([
-        "conta" => $contaExistente,
-        "pix" => $pixGerado
+      if ($exiteBoleto) {
+        $mercadoPagoController = new MercadoPagoController();
+        $boletoGerado = $mercadoPagoController->gerarBoletoApenas([
+          'valor' => floatval($contaExistente['valor'] ?? 0.00),
+          'descricao' => 'Cobrança de Mensalidade do Sistema',
+          'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+          'nome' => $usuario['nome'] ?? 'Cliente',
+          'cnpj' => $empresa['cnpj'] ?? null,
+          'logradouro' => $empresa['logradouro'] ?? null,
+          'numero' => $empresa['numero'] ?? null,
+          'bairro' => $empresa['bairro'] ?? null,
+          'cidade' => $empresa['cidade'] ?? null,
+          'uf' => $empresa['uf'] ?? null,
+          'cep' => $empresa['cep'] ?? null,
+          'dataVencimento' => $contaExistente['vencimento'],
+        ]);
+
+        $contaExistenteController = new ContasController($contaExistente['id']);
+        $contaExistente = $contaExistenteController->updateOnly([
+          'descricao' => $contaExistente['descricao'],
+          'conta_pagamento' => [
+            'create' => [
+              [
+                "id_pagamento" => $boletoGerado['id'],
+              ]
+            ]
+          ]
+        ]);
+
+        $contasAssociadas = $contaController->findOnly([
+          'filter' => [
+            'token_unico' => $contaExistente['token_unico']
+          ]
+        ]);
+
+        foreach ($contasAssociadas as $key => $contaAssociada) {
+          if ($contaAssociada['id'] !== $contaExistente['id']) {
+            $contaAssociadaController = new ContasController($contaAssociada['id']);
+            $contaAssociada = $contaAssociadaController->updateOnly([
+              'descricao' => $contaAssociada['descricao'],
+              'conta_pagamento' => [
+                'create' => [
+                  [
+                    "id_pagamento" => $boletoGerado['id'],
+                  ]
+                ]
+              ]
+            ]);
+          }
+        }
+      }
+
+      $contaRetornoController = new ContasController();
+      $contaRetorno = $contaRetornoController->findOnly([
+        'filter' => [
+          'id' => $contaExistente['id']
+        ],
+        "includes" => [
+          "conta_pagamento" => [
+            "includes" => [
+              "mercado_pago_pagamentos" => true
+            ]
+          ]
+        ],
+        'limit' => 1
       ]);
+
+      http_response_code(200);
+      echo json_encode($contaRetorno);
     } catch (\Exception $e) {
       http_response_code(500);
       echo json_encode([
