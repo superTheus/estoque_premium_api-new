@@ -6,6 +6,7 @@ use App\Models\ContasModel;
 use Dotenv\Dotenv;
 use App\Models\MercadoPagoModel;
 use App\Models\ContasUsuariosModel;
+use DateTime;
 use MercadoPago\MercadoPagoConfig;
 use MercadoPago\Client\Payment\PaymentClient;
 use MercadoPago\Exceptions\MPApiException;
@@ -115,7 +116,7 @@ class MercadoPagoController extends ControllerBase
             ];
 
             $payment = $client->create($paymentData);
- 
+
             $pagamentoData = [
                 'payment_id' => $payment->id,
                 'status' => $payment->status,
@@ -174,6 +175,8 @@ class MercadoPagoController extends ControllerBase
             $response = curl_exec($curl);
             $payment = json_decode($response, true);
 
+            die(json_encode($payment));
+
             $pagamento = $this->model->findByPaymentId($paymentId);
 
             if (!$pagamento) {
@@ -189,8 +192,31 @@ class MercadoPagoController extends ControllerBase
                 'payment_data' => json_encode($payment)
             ]);
 
+            
             if ($payment['status'] === 'approved') {
-                $this->atualizarVencimentoConta($pagamento['id_conta']);
+                $contasPagamentoController = new ContasPagamentoController();
+                $contasPagamento = $contasPagamentoController->findOnly([
+                    'filter' => [
+                        'id_pagamento' => $pagamento['id']
+                    ]
+                ]);
+
+                foreach ($contasPagamento as $contaPagamento) {
+                    $contaPagamentoControllerInstance = new ContasController($contaPagamento['id_conta']);
+                    $contaPagamentoControllerInstance->updateOnly([
+                        'situacao' => 'PA'
+                    ]);
+
+                    $contaFinanceiroModel = new ContasModel($contaPagamento['id_conta']);
+                    $contaFinanceiro = $contaFinanceiroModel->current();
+
+                    $contaUsuarioModel = new ContasUsuariosModel($contaFinanceiro['id_conta']);
+                    $contaDados = $contaUsuarioModel->current();
+
+                    if($contaDados['tipo'] === 'C') {
+                        $this->atualizarVencimentoConta($contaFinanceiro['id_conta']);
+                    }
+                }
             }
 
             http_response_code(200);
@@ -208,34 +234,136 @@ class MercadoPagoController extends ControllerBase
         }
     }
 
-    /**
-     * Atualiza a data de vencimento da conta adicionando um mês
-     */
     private function atualizarVencimentoConta($idConta)
     {
         try {
             $contasUsuariosModel = new ContasUsuariosModel($idConta);
-            $conta = $contasUsuariosModel->current();
+            $conta = $contasUsuariosModel->findOnly([
+                'filter' => [
+                    'id' => $idConta
+                ],
+                "includes" => [
+                    "empresas" => true
+                ],
+                'limit' => 1
+            ]);
+
+            if ($conta && count($conta) > 0) {
+                $conta = $conta[0];
+            } else {
+                $conta = null;
+            }
 
             if (empty($conta)) {
                 throw new \Exception("Conta não encontrada");
             }
 
-            // Obter a data de vencimento atual ou usar a data atual
+            $empresa = $conta['empresas'][0] ?? null;
             $dataVencimento = $conta['vencimento'] ?? date('Y-m-d');
 
-            // Se a data de vencimento já passou, usar a data atual
             if (strtotime($dataVencimento) < strtotime('today')) {
                 $dataVencimento = date('Y-m-d');
             }
 
-            // Adicionar um mês
             $novaDataVencimento = date('Y-m-d', strtotime($dataVencimento . ' +1 month'));
 
-            // Atualizar a conta
             $contasUsuariosModel->update([
                 'vencimento' => $novaDataVencimento,
-                'status' => 'A' // Ativar a conta caso esteja inativa
+                'status' => 'A'
+            ]);
+
+            $contaUsuariosController = new ContasUsuariosController();
+            $formasPagamentosController = new FormasPagamentoController();
+            $clientesController = new ClientesController();
+            $contaController = new ContasController();
+
+            $forma = $formasPagamentosController->findOnly([
+                'filter' => [
+                    'id_conta' => $conta['id_conta'],
+                    'id_tipo' => 11
+                ],
+                'limit' => 1
+            ]);
+
+            if ($forma && count($forma) > 0) {
+                $forma = $forma[0];
+            } else {
+                $forma = null;
+            }
+
+            $contasAdms = $contaUsuariosController->findOnly([
+                'filter' => [
+                    'tipo' => 'A',
+                    'deletado' => 'N',
+                    'status' => 'A',
+                ],
+                'includes' => [
+                    'empresas' => true,
+                    'usuarios' => true
+                ]
+            ]);
+
+            $tokenUnico = uniqid(date('YmdHis'));
+            $contasGeradas = [];
+
+            if ($contasAdms) {
+                foreach ($contasAdms as $contaAdm) {
+                    $forma = $formasPagamentosController->findOnly([
+                        "filter" => [
+                            "id_conta" => $contaAdm['id'],
+                            "id_tipo" => 11
+                        ],
+                    ]);
+
+                    if ($forma && isset($forma[0])) {
+                        $forma = $forma[0];
+                    }
+
+                    $cliente = $clientesController->findOnly([
+                        'filter' => [
+                            'documento' => $contaAdm['empresas'][0]['cnpj'] ?? null,
+                            'id_conta' => $contaAdm['id']
+                        ],
+                        'limit' => 1
+                    ]);
+
+                    if ($cliente && count($cliente) > 0) {
+                        $cliente = $cliente[0];
+                    } else {
+                        $cliente = null;
+                    }
+
+                    $contasGeradas[] = $contaController->createOnly([
+                        'id_conta' => $contaAdm['id'],
+                        'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
+                        'id_cliente' => $cliente ? $cliente['id'] : null,
+                        'id_forma' => $forma['id'] ?? null,
+                        'descricao'  => 'Assinatura mensal - ' . $conta['responsavel'],
+                        'valor' => $conta['valor_mensal'] ?? 0.00,
+                        'origem' => 'M',
+                        'natureza' => 'R',
+                        'condicao' => 'A',
+                        'vencimento' => $novaDataVencimento,
+                        'observacoes' => 'Geração automática de conta mensalidade',
+                        'situacao' => 'PE',
+                        'token_unico' => $tokenUnico,
+                    ]);
+                }
+            }
+
+            $contaController->createOnly([
+                'id_conta' => $conta['id_conta'],
+                'id_empresa' => $empresa['id'],
+                'id_conta' => $conta['id_conta'],
+                'id_forma' => $forma ? $forma['id'] : null,
+                'descricao' => 'Mensalidade Sistema',
+                'valor' => floatval($conta['valor_mensal']),
+                'vencimento' => $novaDataVencimento,
+                'observacoes' => 'Geração automática de conta para pagamento da mensalidade do sistema',
+                'origem' => 'M',
+                'natureza' => 'D',
+                'situacao' => 'PE',
+                'token_unico' => $tokenUnico,
             ]);
 
             error_log("Data de vencimento atualizada para conta {$idConta}: {$novaDataVencimento}");

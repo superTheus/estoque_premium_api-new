@@ -403,46 +403,9 @@ class ContasController extends ControllerBase
           'situacao' => 'PE',
           'token_unico' => $tokenUnico,
         ]);
-        $contasGeradas[] = $contaExistente;
-
-        $mercadoPagoController = new MercadoPagoController();
-        $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
-          'valor' => floatval($conta['valor_mensal'] ?? 0.00),
-          'descricao' => 'Mensalidade do Sistema',
-          'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
-          'responsavel' => $usuario['nome'] ?? 'Cliente',
-          'cnpj' => $empresa['cnpj'] ?? null,
-          'logradouro' => $empresa['logradouro'] ?? null,
-          'numero' => $empresa['numero'] ?? null,
-          'bairro' => $empresa['bairro'] ?? null,
-          'cidade' => $empresa['cidade'] ?? null,
-          'uf' => $empresa['uf'] ?? null,
-          'cep' => $empresa['cep'] ?? null,
-          'dataVencimento' => $vencimento,
-        ]);
-
-        foreach ($contasGeradas as $key => $contaGerada) {
-          $novasContasController = new ContasController($contaGerada['id']);
-          $contasGeradas[$key] = $novasContasController->updateOnly([
-            'descricao' => $contaGerada['descricao'],
-            'conta_pagamento' => [
-              'create' => [
-                [
-                  'id_pagamento' => $pagamentoBoleto['id'],
-                ]
-              ]
-            ]
-          ]);
-        }
       }
 
-      // die(json_encode([
-      //   'exiteBoleto' => $exiteBoleto,
-      //   'exitePix' => $exitePix
-      // ]));
-
       if (!$exitePix) {
-        die("Entrou aqui");
         $mercadoPagoController = new MercadoPagoController();
         $pixGerado = $mercadoPagoController->gerarPixApenas([
           'valor' => floatval($contaExistente['valor'] ?? 0.00),
@@ -494,7 +457,7 @@ class ContasController extends ControllerBase
         }
       }
 
-      if ($exiteBoleto) {
+      if (!$exiteBoleto) {
         $mercadoPagoController = new MercadoPagoController();
         $boletoGerado = $mercadoPagoController->gerarBoletoApenas([
           'valor' => floatval($contaExistente['valor'] ?? 0.00),
@@ -560,6 +523,12 @@ class ContasController extends ControllerBase
         ],
         'limit' => 1
       ]);
+
+      if($contaRetorno && count($contaRetorno) > 0) {
+        $contaRetorno = $contaRetorno[0];
+      } else {
+        throw new \Exception("Erro ao gerar pagamento da conta");
+      }
 
       http_response_code(200);
       echo json_encode($contaRetorno);

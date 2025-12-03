@@ -601,6 +601,12 @@ class Routers
                     $data = json_decode(file_get_contents('php://input'), true);
                     $contasController->pagamento($data);
                 });
+
+                $router->post('/consultar-pagamento', function () {
+                    $mercadoPagoController = new MercadoPagoController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $mercadoPagoController->consultarPagamento($data);
+                });
             });
         });
 
