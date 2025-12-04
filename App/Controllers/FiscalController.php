@@ -23,7 +23,12 @@ class FiscalController extends ApiModel
   public function emitir($idVenda, $tipo = 'NFCE')
   {
     try {
-      $vendasController = new VendasController();
+
+      if (!$idVenda) {
+        throw new \Exception('ID da venda é obrigatório para emissão de nota fiscal.');
+      }
+
+      $vendasController = new VendasController($idVenda);
       $response = $vendasController->findOnly([
         "filter" => [
           "id" => $idVenda
@@ -205,23 +210,35 @@ class FiscalController extends ApiModel
       http_response_code(200);
       echo json_encode($venda);
     } catch (\Exception $e) {
-      $errors = json_decode($e->getMessage(), true);
-      $messagemErro = $errors['error'];
-      if(isset($errors['error_tags']) && is_array($errors['error_tags']) && count($errors['error_tags']) > 0) {
+      $rawMessage = $e->getMessage();
+      error_log('[FiscalController::emitir] Erro ao emitir nota: ' . $rawMessage);
+
+      // Tenta interpretar como JSON; se falhar, usa mensagem simples
+      $errors = json_decode($rawMessage, true);
+      if (json_last_error() !== JSON_ERROR_NONE || $errors === null) {
+        $errors = [ 'error' => $rawMessage ];
+      }
+
+      // Monta mensagem amigável
+      $messagemErro = $errors['error'] ?? ($errors['message'] ?? 'Erro ao emitir nota.');
+      if (isset($errors['error_tags']) && is_array($errors['error_tags']) && count($errors['error_tags']) > 0) {
         $messagemErro = 'Erros: ' . implode(', ', $errors['error_tags']);
       }
 
-      if ($errors) {
+      // Tenta registrar o erro na venda sem mascarar o erro original
+      try {
         $vendasController = new VendasController($idVenda);
         $vendasController->updateOnly([
-          "nota_emitida" => "S",
-          "status_nota" => "F",
-          "messagem_error" => $messagemErro,
-          "xml" => isset($errors['xml']) ? $errors['xml'] : null
+          'nota_emitida' => 'S',
+          'status_nota' => 'F',
+          'messagem_error' => $messagemErro,
+          'xml' => $errors['xml'] ?? null
         ]);
+      } catch (\Exception $inner) {
+        error_log('[FiscalController::emitir] Falha ao persistir erro na venda: ' . $inner->getMessage());
       }
 
-      http_response_code(401);
+      http_response_code(400);
       echo json_encode($errors);
     }
   }
