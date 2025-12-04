@@ -205,7 +205,7 @@ class FiscalController extends ApiModel
         "pdf" => $notaEmitida['pdf'],
         "xml" => $notaEmitida['xml'],
         "status_nota" => "S",
-        "messagem_error" => null
+        "messagem_error" => ""
       ]);
 
       http_response_code(200);
