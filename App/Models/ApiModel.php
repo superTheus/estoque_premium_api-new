@@ -172,6 +172,6 @@ class ApiModel
 
   public function nfe($data)
   {
-    return $this->request('fiscal/nfe', 'POST', $data, false);
+    return $this->request('fiscal/nfe', 'POST', $data);
   }
 }

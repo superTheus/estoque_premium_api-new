@@ -11,6 +11,371 @@ class FiscalController extends ApiModel
     parent::__construct();
   }
 
+  /**
+   * Valida todos os dados necessários para emissão de nota fiscal
+   * 
+   * @param array $empresa Dados da empresa
+   * @param array $operacao Dados da operação
+   * @param array|null $cliente Dados do cliente (opcional para NFCe)
+   * @param array $produtos Produtos da venda
+   * @param array $pagamentos Pagamentos da venda
+   * @param string $tipo Tipo de nota (NFE ou NFCE)
+   * @throws \Exception Se houver dados inválidos ou faltantes
+   */
+  private function validarDadosEmissao($empresa, $operacao, $cliente, $produtos, $pagamentos, $tipo)
+  {
+    $erros = [];
+
+    // ========== VALIDAÇÃO DA EMPRESA ==========
+    if (empty($empresa)) {
+      $erros[] = 'Empresa não encontrada para esta venda.';
+    } else {
+      // CNPJ
+      if (empty($empresa['cnpj'])) {
+        $erros[] = 'CNPJ da empresa não informado.';
+      }
+
+      // Razão Social
+      if (empty($empresa['razao_social'])) {
+        $erros[] = 'Razão Social da empresa não informada.';
+      }
+
+      // Inscrição Estadual
+      if (empty($empresa['inscricao_estadual'])) {
+        $erros[] = 'Inscrição Estadual da empresa não informada.';
+      }
+
+      // Endereço da empresa
+      if (empty($empresa['cep'])) {
+        $erros[] = 'CEP da empresa não informado.';
+      }
+      if (empty($empresa['logradouro'])) {
+        $erros[] = 'Logradouro da empresa não informado.';
+      }
+      if (empty($empresa['numero'])) {
+        $erros[] = 'Número do endereço da empresa não informado.';
+      }
+      if (empty($empresa['bairro'])) {
+        $erros[] = 'Bairro da empresa não informado.';
+      }
+      if (empty($empresa['cidade'])) {
+        $erros[] = 'Cidade da empresa não informada.';
+      }
+      if (empty($empresa['uf'])) {
+        $erros[] = 'UF da empresa não informada.';
+      }
+
+      // Certificado Digital
+      if (empty($empresa['certificado'])) {
+        $erros[] = 'Certificado digital da empresa não cadastrado.';
+      }
+      if (empty($empresa['senha'])) {
+        $erros[] = 'Senha do certificado digital não informada.';
+      }
+
+      // CSC para NFCe
+      if ($tipo === 'NFCE') {
+        $isHomologacao = ($empresa['homologacao'] ?? 'N') === 'S';
+        
+        if ($isHomologacao) {
+          if (empty($empresa['csc_homologacao'])) {
+            $erros[] = 'CSC de homologação não informado para emissão de NFCe.';
+          }
+          if (empty($empresa['csc_id_homologacao'])) {
+            $erros[] = 'ID do CSC de homologação não informado para emissão de NFCe.';
+          }
+        } else {
+          if (empty($empresa['csc'])) {
+            $erros[] = 'CSC de produção não informado para emissão de NFCe.';
+          }
+          if (empty($empresa['csc_id'])) {
+            $erros[] = 'ID do CSC de produção não informado para emissão de NFCe.';
+          }
+        }
+      }
+
+      // CRT (Código de Regime Tributário)
+      if (empty($empresa['crt'])) {
+        $erros[] = 'Código de Regime Tributário (CRT) da empresa não informado.';
+      }
+    }
+
+    // ========== VALIDAÇÃO DA OPERAÇÃO ==========
+    if (empty($operacao)) {
+      $erros[] = 'Operação fiscal não encontrada para esta venda.';
+    } else {
+      if (empty($operacao['cfop_estadual'])) {
+        $erros[] = 'CFOP estadual da operação não informado.';
+      }
+      if (empty($operacao['descricao'])) {
+        $erros[] = 'Descrição da operação não informada.';
+      }
+    }
+
+    // ========== VALIDAÇÃO DO CLIENTE (obrigatório para NFE) ==========
+    if ($tipo === 'NFE') {
+      if (empty($cliente)) {
+        $erros[] = 'NFe não pode ser emitida sem cliente. Para consumidor final, utilize NFCe.';
+      } else {
+        // Documento (CPF/CNPJ)
+        if (empty($cliente['documento'])) {
+          $erros[] = 'Documento (CPF/CNPJ) do cliente não informado. Obrigatório para NFe.';
+        } else {
+          $docLimpo = preg_replace('/\D/', '', $cliente['documento']);
+          if (strlen($docLimpo) !== 11 && strlen($docLimpo) !== 14) {
+            $erros[] = 'Documento do cliente inválido. Deve ser um CPF (11 dígitos) ou CNPJ (14 dígitos).';
+          }
+        }
+
+        // Nome
+        if (empty($cliente['nome'])) {
+          $erros[] = 'Nome do cliente não informado';
+        }
+
+        // Endereço completo obrigatório para NFe
+        if (empty($cliente['cep'])) {
+          $erros[] = 'CEP do cliente não informado';
+        }
+        if (empty($cliente['logradouro'])) {
+          $erros[] = 'Logradouro do cliente não informado';
+        }
+        if (empty($cliente['numero'])) {
+          $erros[] = 'Número do endereço do cliente não informado';
+        }
+        if (empty($cliente['bairro'])) {
+          $erros[] = 'Bairro do cliente não informado';
+        }
+        if (empty($cliente['cidade'])) {
+          $erros[] = 'Cidade do cliente não informada';
+        }
+        if (empty($cliente['estado'])) {
+          $erros[] = 'Estado do cliente não informado';
+        }
+      }
+    }
+
+    if ($tipo === 'NFCE' && !empty($cliente)) {
+      if (!empty($cliente['documento'])) {
+        $docLimpo = preg_replace('/\D/', '', $cliente['documento']);
+        if (strlen($docLimpo) !== 11 && strlen($docLimpo) !== 14) {
+          $erros[] = 'Documento do cliente inválido. Deve ser um CPF (11 dígitos) ou CNPJ (14 dígitos).';
+        }
+      }
+    }
+
+    if (empty($produtos) || count($produtos) === 0) {
+      $erros[] = 'A venda não possui produtos para emissão da nota fiscal.';
+    } else {
+      foreach ($produtos as $index => $produto) {
+        $numProduto = $index + 1;
+        $descProduto = $produto['produtos']['descricao'] ?? "Produto #{$numProduto}";
+
+        if (empty($produto['produtos'])) {
+          $erros[] = "Dados do produto #{$numProduto} não encontrados.";
+          continue;
+        }
+
+        // NCM
+        if (empty($produto['produtos']['ncm'])) {
+          $erros[] = "NCM não informado para o produto '{$descProduto}'.";
+        } else {
+          $ncmLimpo = preg_replace('/\D/', '', $produto['produtos']['ncm']);
+          if (strlen($ncmLimpo) !== 8) {
+            $erros[] = "NCM inválido para o produto '{$descProduto}'. Deve conter 8 dígitos.";
+          }
+        }
+
+        // Unidade
+        if (empty($produto['produtos']['unidade'])) {
+          $erros[] = "Unidade de medida não informada para o produto '{$descProduto}'.";
+        }
+
+        // Descrição
+        if (empty($produto['produtos']['descricao'])) {
+          $erros[] = "Descrição não informada para o produto #{$numProduto}.";
+        }
+
+        // CFOP do item
+        if (empty($produto['cfop'])) {
+          $erros[] = "CFOP não informado para o produto '{$descProduto}'.";
+        }
+
+        // Quantidade e valor
+        if (empty($produto['quantidade']) || $produto['quantidade'] <= 0) {
+          $erros[] = "Quantidade inválida para o produto '{$descProduto}'.";
+        }
+        if (!isset($produto['preco']) || $produto['preco'] < 0) {
+          $erros[] = "Preço inválido para o produto '{$descProduto}'.";
+        }
+      }
+    }
+
+    if (empty($pagamentos) || count($pagamentos) === 0) {
+      $erros[] = 'A venda não possui pagamentos registrados para emissão da nota fiscal.';
+    } else {
+      foreach ($pagamentos as $index => $pagamento) {
+        $numPagamento = $index + 1;
+
+        if (empty($pagamento['formas_pagamento'])) {
+          $erros[] = "Forma de pagamento #{$numPagamento} não encontrada.";
+          continue;
+        }
+
+        if (empty($pagamento['formas_pagamento']['tipos_pagamento']) || 
+            empty($pagamento['formas_pagamento']['tipos_pagamento'][0])) {
+          $erros[] = "Tipo de pagamento não configurado para a forma '{$pagamento['formas_pagamento']['descricao']}'.";
+          continue;
+        }
+
+        $tipoPagamento = $pagamento['formas_pagamento']['tipos_pagamento'][0];
+        if (!isset($tipoPagamento['codigo_sefaz']) || $tipoPagamento['codigo_sefaz'] === null) {
+          $erros[] = "Código SEFAZ não configurado para o tipo de pagamento '{$tipoPagamento['descricao']}'.";
+        }
+
+        if (!isset($pagamento['valor']) || $pagamento['valor'] <= 0) {
+          $erros[] = "Valor inválido para o pagamento #{$numPagamento}.";
+        }
+      }
+    }
+
+    if (count($erros) > 0) {
+      throw new \Exception(json_encode([
+        'error' => 'Validação falhou. Corrija os erros antes de emitir a nota fiscal.',
+        'error_tags' => $erros
+      ]));
+    }
+  }
+
+  /**
+   * Determina o CFOP da nota baseado no estado do cliente vs empresa
+   * 
+   * @param array $empresa Dados da empresa emitente
+   * @param array|null $cliente Dados do cliente (null para consumidor final)
+   * @param array $operacao Dados da operação fiscal
+   * @return string CFOP a ser utilizado na nota
+   */
+  private function determinarCFOP($empresa, $cliente, $operacao)
+  {
+    // Se não tem cliente (consumidor final), usa CFOP estadual
+    if (empty($cliente)) {
+      return $operacao['cfop_estadual'];
+    }
+
+    // Normalizar UFs para comparação (maiúsculas e sem espaços)
+    $ufEmpresa = strtoupper(trim($empresa['uf'] ?? ''));
+    $ufCliente = strtoupper(trim($cliente['estado'] ?? ''));
+
+    // Se cliente não tem estado informado, assume estadual
+    if (empty($ufCliente)) {
+      return $operacao['cfop_estadual'];
+    }
+
+    // Se mesmo estado = CFOP estadual (5XXX)
+    // Se estado diferente = CFOP interestadual (6XXX)
+    if ($ufEmpresa === $ufCliente) {
+      return $operacao['cfop_estadual'];
+    } else {
+      return $operacao['cfop_internacional'];
+    }
+  }
+
+  /**
+   * Determina o CFOP do produto baseado no estado do cliente vs empresa
+   * Converte o CFOP do produto para estadual ou interestadual conforme necessário
+   * 
+   * @param array $empresa Dados da empresa emitente
+   * @param array|null $cliente Dados do cliente (null para consumidor final)
+   * @param array $produto Dados do produto da venda
+   * @return string CFOP a ser utilizado no produto
+   */
+  private function determinarCFOPProduto($empresa, $cliente, $produto)
+  {
+    $cfopOriginal = $produto['cfop'] ?? '';
+
+    // Se não tem CFOP definido no produto, retorna vazio
+    if (empty($cfopOriginal)) {
+      return $cfopOriginal;
+    }
+
+    // Se não tem cliente (consumidor final), mantém o CFOP original
+    if (empty($cliente)) {
+      return $cfopOriginal;
+    }
+
+    // Normalizar UFs para comparação
+    $ufEmpresa = strtoupper(trim($empresa['uf'] ?? ''));
+    $ufCliente = strtoupper(trim($cliente['estado'] ?? ''));
+
+    // Se cliente não tem estado informado, mantém CFOP original
+    if (empty($ufCliente)) {
+      return $cfopOriginal;
+    }
+
+    $primeiroDigito = substr($cfopOriginal, 0, 1);
+    $restoCfop = substr($cfopOriginal, 1);
+
+    if ($ufEmpresa === $ufCliente) {
+      if ($primeiroDigito === '6') {
+        return '5' . $restoCfop;
+      }
+      return $cfopOriginal;
+    } else {
+      if ($primeiroDigito === '5') {
+        return '6' . $restoCfop;
+      }
+      return $cfopOriginal;
+    }
+  }
+
+  /**
+   * Determina se a operação é com consumidor final
+   * 
+   * Regras SEFAZ:
+   * - Pessoa Física (CPF) = Sempre consumidor final
+   * - Pessoa Jurídica (CNPJ) sem Inscrição Estadual = Consumidor final (não contribuinte)
+   * - Pessoa Jurídica (CNPJ) com Inscrição Estadual válida = Não é consumidor final (contribuinte)
+   * - Campo consumidor_final no cadastro do cliente = "S" = Consumidor final
+   * 
+   * @param array|null $cliente Dados do cliente
+   * @return string "S" para consumidor final, "N" caso contrário
+   */
+  private function determinarConsumidorFinal($cliente)
+  {
+    // Se não tem cliente, é consumidor final
+    if (empty($cliente)) {
+      return "S";
+    }
+
+    // Se o cliente está marcado como consumidor final no cadastro
+    if (isset($cliente['consumidor_final']) && strtoupper($cliente['consumidor_final']) === 'S') {
+      return "S";
+    }
+
+    // Verificar tipo de documento
+    $documento = preg_replace('/\D/', '', $cliente['documento'] ?? '');
+    
+    // CPF (11 dígitos) = Pessoa Física = Consumidor Final
+    if (strlen($documento) === 11) {
+      return "S";
+    }
+
+    // CNPJ (14 dígitos) = Verificar se tem Inscrição Estadual
+    if (strlen($documento) === 14) {
+      $inscricaoEstadual = trim($cliente['inscricao_estadual'] ?? '');
+      
+      // Se não tem IE ou é ISENTO = Não contribuinte = Consumidor Final
+      if (empty($inscricaoEstadual) || strtoupper($inscricaoEstadual) === 'ISENTO') {
+        return "S";
+      }
+      
+      // Tem CNPJ e tem IE válida = Contribuinte = Não é consumidor final
+      return "N";
+    }
+
+    // Documento inválido ou vazio = Consumidor final por segurança
+    return "S";
+  }
+
   public function emitirNFCE($idVenda)
   {
     $this->emitir($idVenda, 'NFCE');
@@ -23,7 +388,6 @@ class FiscalController extends ApiModel
   public function emitir($idVenda, $tipo = 'NFCE')
   {
     try {
-
       if (!$idVenda) {
         throw new \Exception('ID da venda é obrigatório para emissão de nota fiscal.');
       }
@@ -62,7 +426,6 @@ class FiscalController extends ApiModel
 
       $venda = $response[0];
 
-      // Validar cliente obrigatório apenas para NFe
       if (!isset($venda['clientes'][0]) && $tipo === 'NFE') {
         throw new \Exception(json_encode([
           "error" => "NFe não pode ser emitida sem cliente ou para consumidor final, nesse caso tente emitir uma NFCe."
@@ -75,7 +438,9 @@ class FiscalController extends ApiModel
       $produtos = $venda['venda_produtos'];
       $pagamentos = $venda['venda_pagamentos'];
 
-      // Obter dados de cidade e endereço
+      // Validar dados antes de emitir a nota
+      $this->validarDadosEmissao($empresa, $operacao, $cliente, $produtos, $pagamentos, $tipo);
+
       $cidade = null;
       $endereco = null;
 
@@ -91,7 +456,6 @@ class FiscalController extends ApiModel
           "cep" => $cliente["cep"] ?? ""
         ];
       } else {
-        // Para consumidor final (NFCE), usar dados da empresa (se disponível)
         if (!empty($empresa['cidade'])) {
           $cidadeEmpresa = $this->cidadesUnico($empresa['cidade']);
           $endereco = [
@@ -105,7 +469,6 @@ class FiscalController extends ApiModel
           ];
           $cidade = $cidadeEmpresa;
         } else {
-          // Se não tiver informação de cidade/endereço
           $endereco = [
             "bairro" => "",
             "codigo_municipio" => "",
@@ -118,20 +481,26 @@ class FiscalController extends ApiModel
         }
       }
 
-      // Validar obrigatoriedade de cidade apenas para NFe
       if (!$cidade && $tipo === 'NFE') {
         throw new \Exception(json_encode([
           "error" => "NFe requer informações de cidade/endereço. Certifique-se de que o cliente possui um endereço válido."
         ]));
       }
 
+      // Determinar CFOP baseado no estado do cliente vs empresa
+      // Se cliente do mesmo estado da empresa = CFOP estadual (ex: 5102)
+      // Se cliente de outro estado = CFOP interestadual (ex: 6102)
+      $cfopNota = $this->determinarCFOP($empresa, $cliente, $operacao);
+
       $produtosNota = [];
       $pagamentosNota = [];
 
       foreach ($produtos as $key => $produto) {
+        $cfopProduto = $this->determinarCFOPProduto($empresa, $cliente, $produto);
+        
         $produtosNota[] = [
           "acrescimo" => 0,
-          "cfop" => $produto["cfop"],
+          "cfop" => $cfopProduto,
           "codigo" => $produto["id_produto"],
           "desconto" => $produto["desconto_real"],
           "descricao" => $produto["produtos"]['descricao'],
@@ -153,24 +522,45 @@ class FiscalController extends ApiModel
         ];
       }
 
-      $consumidorFinal = $cliente ? "N" : "S";
+      // Determinar se é consumidor final
+      // Consumidor final = Pessoa Física (CPF) OU Pessoa Jurídica sem Inscrição Estadual válida
+      // Não contribuinte = sempre consumidor final
+      $consumidorFinal = $this->determinarConsumidorFinal($cliente);
+      $consumidorFinalFlag = $consumidorFinal === "S" ? 1 : 0;
       
       $clienteData = null;
       if ($cliente) {
+        $documentoLimpo = preg_replace('/\D/', '', $cliente["documento"] ?? '');
+        $tipoDocumento = strlen($documentoLimpo) === 11 ? "CPF" : "CNPJ";
+        $inscricaoEstadual = trim($cliente["inscricao_estadual"] ?? "");
+        $temInscricaoValida = !empty($inscricaoEstadual) && strtoupper($inscricaoEstadual) !== "ISENTO";
+
+        // Força consumidor final para CPF ou ausência de inscrição estadual
+        if ($tipoDocumento === "CPF" || !$temInscricaoValida) {
+          $consumidorFinal = "S";
+          $consumidorFinalFlag = 1;
+        }
+
+        $tipoIcms = ($tipoDocumento === "CNPJ" && $temInscricaoValida && $consumidorFinal === "N") ? "1" : "9";
+
+        if ($tipoIcms === "9") {
+          $inscricaoEstadual = "ISENTO";
+        }
+
         $clienteData = [
           "documento" => $cliente["documento"],
           "nome" => $cliente["nome"],
-          "tipo_documento" => strlen(preg_replace('/\D/', '', $cliente["documento"])) === 11 ? "CPF" : "CNPJ",
-          "tipo_icms" => $cliente['icms'],
+          "tipo_documento" => $tipoDocumento,
+          "tipo_icms" => $tipoIcms,
           "endereco" => $endereco,
-          "inscricao_estadual" => $cliente["inscricao_estadual"] ?? ""
+          "inscricao_estadual" => $inscricaoEstadual
         ];
       } else {
         $clienteData = [
           "documento" => "00000000000",
           "nome" => "CONSUMIDOR FINAL",
           "tipo_documento" => "CPF",
-          "tipo_icms" => "RP",
+          "tipo_icms" => "9", // 9 = Não contribuinte
           "endereco" => $endereco,
           "inscricao_estadual" => "ISENTO"
         ];
@@ -178,9 +568,10 @@ class FiscalController extends ApiModel
 
       $dadosEmissao = [
         "cnpj" => $empresa['cnpj'],
-        "cfop" =>  $operacao['cfop_estadual'],
+        "cfop" => $cfopNota,
         "operacao" => $operacao['descricao'],
         "consumidor_final" => $consumidorFinal,
+        "ind_final" => $consumidorFinalFlag,
         "observacao" => $venda['observacao_nota'],
         "cliente" => $clienteData,
         "modoEmissao" => 1,
