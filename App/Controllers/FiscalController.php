@@ -595,6 +595,7 @@ class FiscalController extends ApiModel
         "url" => $notaEmitida['link'],
         "pdf" => $notaEmitida['pdf'],
         "xml" => $notaEmitida['xml'],
+        'tipo' => $tipo,
         "status_nota" => "S",
         "messagem_error" => ""
       ]);

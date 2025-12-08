@@ -149,7 +149,7 @@ class VendasController extends ControllerBase
                 throw new \Exception("Venda informada não foi encontrada.");
             }
 
-            if($vendaData['status'] !== 'FE') {
+            if ($vendaData['status'] !== 'FE') {
                 throw new \Exception("Apenas vendas finalizadas podem ser reabertas.");
             }
 
@@ -256,7 +256,7 @@ class VendasController extends ControllerBase
                         'filter' => ['id' => $currentData['id_operacao']]
                     ])[0] ?? null;
 
-                    if ($operacao && $operacao['mov_estoque'] === 'S') {
+                    if ($operacao && ($operacao['mov_estoque'] === 'S' || $operacao['mov_estoque'] === 'E')) {
                         $itens = $vendaProdutosController->findOnly([
                             'filter' => ['id_venda' => $currentData['id']]
                         ]);
@@ -275,7 +275,7 @@ class VendasController extends ControllerBase
                                 ])[0] ?? null;
 
                                 if ($estoque) {
-                                    if ($operacao['natureza_operacao'] === 'V') {
+                                    if ($operacao['mov_estoque'] === 'S') {
                                         $newQuantidade = $estoque['estoque'] - $item['quantidade'];
                                     } else {
                                         $newQuantidade = $estoque['estoque'] + $item['quantidade'];
@@ -289,11 +289,12 @@ class VendasController extends ControllerBase
                                         'id_conta' => $currentData['id_conta'],
                                         'id_empresa' => $currentData['id_empresa'],
                                         'id_produto' => $item['id_produto'],
-                                        'descricao' => ($operacao['natureza_operacao'] === 'V' ? 'Saída' : 'Entrada') . ' via venda #' . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT),
+                                        'id_venda' => $currentData['id'],
+                                        'descricao' => ($operacao['mov_estoque'] === 'S' ? 'Saída' : 'Entrada') . ' via venda #' . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT),
                                         'estoque_anterior' => $estoque['estoque'],
                                         'estoque_atual' => $newQuantidade,
                                         'estoque_movimentado' => $item['quantidade'],
-                                        'tipo' => $operacao['natureza_operacao'] === 'V' ? 'S' : 'E',
+                                        'tipo' => $operacao['mov_estoque'] === 'S' ? 'S' : 'E',
                                     ]);
                                 }
                             }
@@ -326,6 +327,64 @@ class VendasController extends ControllerBase
                         ];
 
                         $contasController->createOnly($conta);
+                    }
+                }
+
+                if (isset($data['status']) && $currentData['status'] !== $data['status'] && $data['status'] === 'CA') {
+                    $produtoMovimentacaoController = new ProdutosMovimentacaoController();
+                    $movimentacoes = $produtoMovimentacaoController->findOnly([
+                        'filter' => ['id_venda' => $currentData['id']]
+                    ]);
+
+                    if($movimentacoes) {
+                        foreach ($movimentacoes as $movimentacao) {
+                            $produtoEstoqueController = new ProdutosEstoqueController();
+                            $estoque = $produtoEstoqueController->findOnly([
+                                'filter' => [
+                                    'id_produto' => $movimentacao['id_produto'],
+                                    'id_empresa' => $currentData['id_empresa']
+                                ]
+                            ])[0] ?? null;
+
+                            if ($estoque) {
+                                if ($movimentacao['tipo'] === 'E') {
+                                    $newQuantidade = $estoque['estoque'] - $movimentacao['estoque_movimentado'];
+                                } else {
+                                    $newQuantidade = $estoque['estoque'] + $movimentacao['estoque_movimentado'];
+                                }
+
+                                $produtoEstoqueController = new ProdutosEstoqueController($estoque['id']);
+                                $produtoEstoqueController->updateOnly(['estoque' => $newQuantidade]);
+
+                                $produtoMovimentacaoController = new ProdutosMovimentacaoController();
+                                $produtoMovimentacaoController->createOnly([
+                                    'id_conta' => $currentData['id_conta'],
+                                    'id_empresa' => $currentData['id_empresa'],
+                                    'id_produto' => $movimentacao['id_produto'],
+                                    'id_venda' => $currentData['id'],
+                                    'descricao' => ($movimentacao['tipo'] === 'E' ? 'Saída' : 'Entrada') . ' de cancelamento via venda #' . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT),
+                                    'estoque_anterior' => $estoque['estoque'],
+                                    'estoque_atual' => $newQuantidade,
+                                    'estoque_movimentado' => $movimentacao['estoque_movimentado'],
+                                    'tipo' => $movimentacao['tipo'] === 'E' ? 'S' : 'E',
+                                ]);
+                            }
+                        }
+                    }
+
+                    if($currentData['contas']) {
+                        $contasController = new ContasController();
+                        $contas = $contasController->findOnly([
+                            'filter' => ['id_venda' => $currentData['id']]
+                        ]);
+                        
+                        foreach ($contas as $conta) {
+                            $contasController = new ContasController($conta['id']);
+                            $contasController->updateOnly([
+                                "situacao" => "CA",
+                                "obervacoes" => ($conta['obervacoes'] ? $conta['obervacoes'] . " | " : "") . "Conta cancelada devido ao cancelamento da venda #" . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT)
+                            ]);
+                        }
                     }
                 }
 
