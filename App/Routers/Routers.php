@@ -434,6 +434,11 @@ class Routers
                     $fiscalController->emitirNFE($venda);
                 });
 
+                $router->get('/cancelar/{venda}', function ($venda) {
+                    $fiscalController = new FiscalController();
+                    $fiscalController->cancelarNota($venda);
+                });
+
                 $router->post('/cest', function () {
                     $fiscalController = new FiscalController();
                     $data = json_decode(file_get_contents('php://input'), true);
