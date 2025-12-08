@@ -76,7 +76,7 @@ class FiscalController extends ApiModel
       // CSC para NFCe
       if ($tipo === 'NFCE') {
         $isHomologacao = ($empresa['homologacao'] ?? 'N') === 'S';
-        
+
         if ($isHomologacao) {
           if (empty($empresa['csc_homologacao'])) {
             $erros[] = 'CSC de homologação não informado para emissão de NFCe.';
@@ -221,8 +221,10 @@ class FiscalController extends ApiModel
           continue;
         }
 
-        if (empty($pagamento['formas_pagamento']['tipos_pagamento']) || 
-            empty($pagamento['formas_pagamento']['tipos_pagamento'][0])) {
+        if (
+          empty($pagamento['formas_pagamento']['tipos_pagamento']) ||
+          empty($pagamento['formas_pagamento']['tipos_pagamento'][0])
+        ) {
           $erros[] = "Tipo de pagamento não configurado para a forma '{$pagamento['formas_pagamento']['descricao']}'.";
           continue;
         }
@@ -353,7 +355,7 @@ class FiscalController extends ApiModel
 
     // Verificar tipo de documento
     $documento = preg_replace('/\D/', '', $cliente['documento'] ?? '');
-    
+
     // CPF (11 dígitos) = Pessoa Física = Consumidor Final
     if (strlen($documento) === 11) {
       return "S";
@@ -362,12 +364,12 @@ class FiscalController extends ApiModel
     // CNPJ (14 dígitos) = Verificar se tem Inscrição Estadual
     if (strlen($documento) === 14) {
       $inscricaoEstadual = trim($cliente['inscricao_estadual'] ?? '');
-      
+
       // Se não tem IE ou é ISENTO = Não contribuinte = Consumidor Final
       if (empty($inscricaoEstadual) || strtoupper($inscricaoEstadual) === 'ISENTO') {
         return "S";
       }
-      
+
       // Tem CNPJ e tem IE válida = Contribuinte = Não é consumidor final
       return "N";
     }
@@ -381,7 +383,8 @@ class FiscalController extends ApiModel
     $this->emitir($idVenda, 'NFCE');
   }
 
-  public function emitirNFE($idVenda) {
+  public function emitirNFE($idVenda)
+  {
     $this->emitir($idVenda, 'NFE');
   }
 
@@ -497,7 +500,7 @@ class FiscalController extends ApiModel
 
       foreach ($produtos as $key => $produto) {
         $cfopProduto = $this->determinarCFOPProduto($empresa, $cliente, $produto);
-        
+
         $produtosNota[] = [
           "acrescimo" => 0,
           "cfop" => $cfopProduto,
@@ -527,7 +530,7 @@ class FiscalController extends ApiModel
       // Não contribuinte = sempre consumidor final
       $consumidorFinal = $this->determinarConsumidorFinal($cliente);
       $consumidorFinalFlag = $consumidorFinal === "S" ? 1 : 0;
-      
+
       $clienteData = null;
       if ($cliente) {
         $documentoLimpo = preg_replace('/\D/', '', $cliente["documento"] ?? '');
@@ -553,7 +556,8 @@ class FiscalController extends ApiModel
           "tipo_documento" => $tipoDocumento,
           "tipo_icms" => $tipoIcms,
           "endereco" => $endereco,
-          "inscricao_estadual" => $inscricaoEstadual
+          "inscricao_estadual" => $inscricaoEstadual,
+          "dthr_emissao" => date('Y-m-d H:i:s')
         ];
       } else {
         $clienteData = [
@@ -609,7 +613,7 @@ class FiscalController extends ApiModel
       // Tenta interpretar como JSON; se falhar, usa mensagem simples
       $errors = json_decode($rawMessage, true);
       if (json_last_error() !== JSON_ERROR_NONE || $errors === null) {
-        $errors = [ 'error' => $rawMessage ];
+        $errors = ['error' => $rawMessage];
       }
 
       // Monta mensagem amigável
@@ -629,6 +633,78 @@ class FiscalController extends ApiModel
         ]);
       } catch (\Exception $inner) {
         error_log('[FiscalController::emitir] Falha ao persistir erro na venda: ' . $inner->getMessage());
+      }
+
+      http_response_code(400);
+      echo json_encode($errors);
+    }
+  }
+
+  public function cancelarNotaSomente($idVenda)
+  {
+    try {
+      if (!$idVenda) {
+        throw new \Exception('ID da venda é obrigatório para emissão de nota fiscal.');
+      }
+
+      $vendasController = new VendasController($idVenda);
+      $response = $vendasController->findOnly([
+        "filter" => [
+          "id" => $idVenda
+        ],
+        "includes" => [
+          "empresas" => true
+        ]
+      ]);
+
+      if (!isset($response[0]) || empty($response[0])) {
+        throw new \Exception('Venda não encontrada.');
+        return;
+      }
+
+      $venda = $response[0];
+      $empresa = $venda['empresas'][0];
+
+      $dadosCancelamento = [
+        "cnpj" => $empresa['cnpj'],
+        "chave" => $venda['chave'],
+        "justificativa" => 'Cancelamento solicitado pelo contribuinte.'
+      ];
+
+      if ($venda['tipo'] === 'NFCE') {
+        $cancelamento = $this->cancelarNfce($dadosCancelamento);
+      } else {
+        $cancelamento = $this->cancelarNfe($dadosCancelamento);
+      }
+
+      if($venda['status'] !== 'CA') {
+        $venda = $vendasController->updateOnly([
+          "status" => "CA"
+        ]);
+      }
+
+      return $cancelamento;
+    } catch (\Exception $e) {
+      $rawMessage = $e->getMessage();
+
+      throw new \Exception($rawMessage);
+    }
+  }
+
+  public function cancelarNota($idVenda)
+  {
+    try {
+      $cancelamento = $this->cancelarNotaSomente($idVenda);
+
+      http_response_code(200);
+      echo json_encode($cancelamento);
+    } catch (\Exception $e) {
+      $rawMessage = $e->getMessage();
+      error_log('[FiscalController::emitir] Erro ao emitir nota: ' . $rawMessage);
+
+      $errors = json_decode($rawMessage, true);
+      if (json_last_error() !== JSON_ERROR_NONE || $errors === null) {
+        $errors = ['error' => $rawMessage];
       }
 
       http_response_code(400);

@@ -372,18 +372,44 @@ class VendasController extends ControllerBase
                         }
                     }
 
-                    if($currentData['contas']) {
-                        $contasController = new ContasController();
-                        $contas = $contasController->findOnly([
-                            'filter' => ['id_venda' => $currentData['id']]
+                    $contasController = new ContasController();
+                    $contas = $contasController->findOnly([
+                        'filter' => ['id_venda' => $currentData['id']]
+                    ]);
+
+                    foreach ($contas as $conta) {
+                        $contasController = new ContasController($conta['id']);
+                        $contasController->updateOnly([
+                            "situacao" => "CA",
+                            "obervacoes" => ($conta['obervacoes'] ? $conta['obervacoes'] . " | " : "") . "Conta cancelada devido ao cancelamento da venda #" . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT)
                         ]);
+                    }
+
+                    if ($currentData['nota_emitida'] === 'S') {
+                        $emissao = new \DateTime($currentData['dthr_emissao']);
+                        $agora = new \DateTime();
+                        $intervalo = $emissao->diff($agora);
+                        $minutosDecorridos = ($intervalo->days * 24 * 60) + ($intervalo->h * 60) + $intervalo->i;
                         
-                        foreach ($contas as $conta) {
-                            $contasController = new ContasController($conta['id']);
-                            $contasController->updateOnly([
-                                "situacao" => "CA",
-                                "obervacoes" => ($conta['obervacoes'] ? $conta['obervacoes'] . " | " : "") . "Conta cancelada devido ao cancelamento da venda #" . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT)
+                        $podeCancelarNota = true;
+
+                        if($currentData['tipo'] == 'NFCE' && $minutosDecorridos > 30) {
+                            $this->model->update([
+                                'messagem_error' => 'Prazo para cancelamento excedido (30 minutos). Favor realizar uma carta de correção.',
                             ]);
+
+                            $podeCancelarNota = false;
+                        } else if($currentData['tipo'] == 'NFE' && $minutosDecorridos > 1440) {
+                            $this->model->update([
+                                'messagem_error' => 'Prazo para cancelamento excedido (24 horas). Favor realizar uma carta de correção.',
+                            ]);
+
+                            $podeCancelarNota = false;
+                        }
+
+                        if($podeCancelarNota) {
+                            $fiscalController = new FiscalController();
+                            $fiscalController->cancelarNotaSomente($currentData['id']);
                         }
                     }
                 }

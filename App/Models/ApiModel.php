@@ -174,4 +174,14 @@ class ApiModel
   {
     return $this->request('fiscal/nfe', 'POST', $data);
   }
+  
+  public function cancelarNfce($data)
+  {
+    return $this->request('fiscal/nfce/cancel', 'POST', $data);
+  }
+
+  public function cancelarNfe($data)
+  {
+    return $this->request('fiscal/nfe/cancel', 'POST', $data);
+  }
 }
