@@ -592,17 +592,23 @@ class FiscalController extends ApiModel
         $notaEmitida = $this->nfe($dadosEmissao);
       }
 
-      $venda = $vendasController->updateOnly([
-        "nota_emitida" => "S",
-        "protocolo" => $notaEmitida['protocolo'],
-        "chave" => $notaEmitida['chave'],
-        "url" => $notaEmitida['link'],
-        "pdf" => $notaEmitida['pdf'],
-        "xml" => $notaEmitida['xml'],
-        'tipo' => $tipo,
-        "status_nota" => "S",
-        "messagem_error" => ""
-      ]);
+      if($notaEmitida) {
+        $venda = $vendasController->updateOnly([
+          "nota_emitida" => "S",
+          "protocolo" => $notaEmitida['protocolo'],
+          "chave" => $notaEmitida['chave'],
+          "url" => $notaEmitida['link'],
+          "pdf" => $notaEmitida['pdf'],
+          "xml" => $notaEmitida['xml'],
+          'tipo' => $tipo,
+          "status_nota" => "S",
+          "messagem_error" => ""
+        ]);
+      } else {
+        throw new \Exception(json_encode([
+          "error" => "Erro desconhecido ao emitir a nota fiscal."
+        ]));
+      }
 
       http_response_code(200);
       echo json_encode($venda);

@@ -175,8 +175,6 @@ class MercadoPagoController extends ControllerBase
             $response = curl_exec($curl);
             $payment = json_decode($response, true);
 
-            die(json_encode($payment));
-
             $pagamento = $this->model->findByPaymentId($paymentId);
 
             if (!$pagamento) {
