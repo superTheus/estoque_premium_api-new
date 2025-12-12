@@ -71,7 +71,7 @@ class ContasUsuariosModel extends BaseModel
                     ["usuarios.nome", "%$searchTerm%", 'LIKE'],
                     ["usuarios.email", "%$searchTerm%", 'LIKE'],
                     ["usuarios.login", "%$searchTerm%", 'LIKE'],
-                ])->limit($limit)->offset($offset)->execute();
+                ])->where("{$this->table}.deletado", "N")->limit($limit)->offset($offset)->execute();
 
             return $result;
         } catch (\PDOException $e) {

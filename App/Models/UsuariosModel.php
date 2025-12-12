@@ -51,7 +51,7 @@ class UsuariosModel extends BaseModel
                     ["usuarios.nome", "%$searchTerm%", 'LIKE'],
                     ["usuarios.email", "%$searchTerm%", 'LIKE'],
                     ["usuarios.login", "%$searchTerm%", 'LIKE'],
-                ])->where("usuarios.id_conta", $idConta)
+                ])->where("usuarios.id_conta", $idConta)->where("{$this->table}.deletado", "N")
                 ->limit($limit)->offset($offset)->execute();
 
             return $result;

@@ -49,7 +49,7 @@ class MarcasModel extends BaseModel
             $result = $queryBuilder->select("{$this->table}.*")
                 ->multipleOrWhere([
                     ["{$this->table}.descricao", "%$searchTerm%", 'LIKE'],
-                ])->where("{$this->table}.id_conta", $idConta)
+                ])->where("{$this->table}.id_conta", $idConta)->where("{$this->table}.deletado", "N")
                 ->limit($limit)->offset($offset)->execute();
 
             return $result;

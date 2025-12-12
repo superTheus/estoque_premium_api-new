@@ -69,7 +69,8 @@ class ContasModel extends BaseModel
                     ["clientes.documento", "%$searchTerm%", 'LIKE'],
                     ["clientes.documento", "%$searchTerm%", 'LIKE'],
                     ["vendas.id", "%$searchTerm%", '='],
-                ])->limit($limit)->offset($offset)->execute();
+                ])->where("{$this->table}.id_conta", $idConta)->where("{$this->table}.deletado", "N")
+                ->limit($limit)->offset($offset)->execute();
 
             return $result;
         } catch (\PDOException $e) {
