@@ -49,7 +49,7 @@ class FornecedoresModel extends BaseModel
                 ->multipleOrWhere([
                     ["fornecedores.nome", "%$searchTerm%", 'LIKE'],
                     ["fornecedores.documento", "%$searchTerm%", 'LIKE'],
-                ])->where("fornecedores.id_conta", $idConta)
+                ])->where("fornecedores.id_conta", $idConta)->where("{$this->table}.deletado", "N")
                 ->limit($limit)->offset($offset)->execute();
 
             return $result;

@@ -93,7 +93,7 @@ class ProdutosModel extends BaseModel
                     ["categorias.descricao", "%$searchTerm%", 'LIKE'],
                     ["subcategorias.descricao", "%$searchTerm%", 'LIKE'],
                     ["fornecedores.nome", "%$searchTerm%", 'LIKE'],
-                ])->where("produtos.id_conta", $idConta);
+                ])->where("produtos.id_conta", $idConta)->where("{$this->table}.deletado", "N");
                     
             if ($idEmpresa !== null) {
                 $queryBuilder->where("produtos_estoque.id_empresa", $idEmpresa);

@@ -56,7 +56,7 @@ class ClientesModel extends BaseModel
                     ["{$this->table}.telefone", "%$searchTerm%", 'LIKE'],
                     ["{$this->table}.celular", "%$searchTerm%", 'LIKE'],
                     ["{$this->table}.documento", "%$searchTerm%", 'LIKE']
-                ])->where("{$this->table}.id_conta", $idConta)
+                ])->where("{$this->table}.id_conta", $idConta)->where("{$this->table}.deletado", "N")
                 ->limit($limit)->offset($offset)->execute();
 
             return $result;
