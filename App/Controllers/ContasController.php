@@ -201,7 +201,7 @@ class ContasController extends ControllerBase
       $currentData = $this->model->current();
       $result = $this->updateOnly($data);
 
-      if ($currentData['situacao'] !== $result['situacao'] && ($result['situacao'] === 'PE' || $result['situacao'] === 'CA')) {
+      if ($result['situacao'] === 'PE' || $result['situacao'] === 'CA') {
         $formaPagamentoController = new FormasPagamentoController();
         $formaPagamento = $formaPagamentoController->findOnly([
           'filter' => [
