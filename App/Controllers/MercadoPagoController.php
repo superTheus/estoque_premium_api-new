@@ -6,6 +6,7 @@ use App\Models\ContasModel;
 use Dotenv\Dotenv;
 use App\Models\MercadoPagoModel;
 use App\Models\ContasUsuariosModel;
+use App\Models\UtilsModel;
 use DateTime;
 use MercadoPago\MercadoPagoConfig;
 use MercadoPago\Client\Payment\PaymentClient;
@@ -175,8 +176,6 @@ class MercadoPagoController extends ControllerBase
             $response = curl_exec($curl);
             $payment = json_decode($response, true);
 
-            die(json_encode($payment));
-
             $pagamento = $this->model->findByPaymentId($paymentId);
 
             if (!$pagamento) {
@@ -192,7 +191,7 @@ class MercadoPagoController extends ControllerBase
                 'payment_data' => json_encode($payment)
             ]);
 
-            
+
             if ($payment['status'] === 'approved') {
                 $contasPagamentoController = new ContasPagamentoController();
                 $contasPagamento = $contasPagamentoController->findOnly([
@@ -213,7 +212,7 @@ class MercadoPagoController extends ControllerBase
                     $contaUsuarioModel = new ContasUsuariosModel($contaFinanceiro['id_conta']);
                     $contaDados = $contaUsuarioModel->current();
 
-                    if($contaDados['tipo'] === 'C') {
+                    if ($contaDados['tipo'] === 'C') {
                         $this->atualizarVencimentoConta($contaFinanceiro['id_conta']);
                     }
                 }
@@ -402,6 +401,147 @@ class MercadoPagoController extends ControllerBase
         }
     }
 
+    public function gerarPagamentoPorConta($idConta)
+    {
+        try {
+            $contasController = new ContasController($idConta);
+            $conta = $contasController->findOnly([
+                'filter' => [
+                    'id' => $idConta
+                ],
+                'includes' => [
+                    'contas_usuarios' => [
+                        "includes" => [
+                            'usuarios' => true
+                        ]
+                    ],
+                    'formas_pagamento' => true,
+                    'empresas' => true,
+                ],
+                'limit' => 1
+            ]);
+
+            if (empty($conta) || count($conta) === 0) {
+                throw new \Exception("Conta não encontrada");
+            }
+
+            $conta = $conta[0];
+            $usuario = $conta['contas_usuarios'][0]['usuarios'][0] ?? null;
+
+            foreach ($conta['contas_usuarios'][0]['usuarios'] as $contaUsuario) {
+                if ($contaUsuario['perfil'] === 'A') {
+                    $usuario = $contaUsuario;
+                    break;
+                }
+            }
+
+            $empresa = $conta['empresas'][0] ?? null;
+
+            foreach ($conta['empresas'] as $contaEmpresa) {
+                if ($contaEmpresa['principal'] === 'S') {
+                    $empresa = $contaEmpresa;
+                    break;
+                }
+            }
+
+            if ($conta['formas_pagamento'] && count($conta['formas_pagamento']) > 0) {
+                $formaPagamento = $conta['formas_pagamento'][0];
+            } else {
+                throw new \Exception("Forma de pagamento não encontrada para esta conta");
+            }
+
+            if ($formaPagamento['id_tipo'] !== 11 && $formaPagamento['id_tipo'] !== 13) {
+                throw new \Exception("Forma de pagamento inválida para geração de pagamento no Mercado Pago");
+            }
+
+            $dias = UtilsModel::diasFaltantes($conta['vencimento']);
+
+            if ($dias <= 28 && $dias >= 0) {
+                $dataPagamento = [
+                    'valor' => floatval($conta['valor'] ?? 0.00),
+                    'descricao' => $conta['descricao'] ?? 'Cobrança de Mensalidade do Sistema',
+                    'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+                    'nome' => $usuario['nome'] ?? 'Cliente',
+                    'cnpj' => $empresa['cnpj'] ?? null,
+                    'logradouro' => $empresa['logradouro'] ?? null,
+                    'numero' => $empresa['numero'] ?? null,
+                    'bairro' => $empresa['bairro'] ?? null,
+                    'cidade' => $empresa['cidade'] ?? null,
+                    'uf' => $empresa['uf'] ?? null,
+                    'cep' => $empresa['cep'] ?? null,
+                    'dataVencimento' => $conta['vencimento'],
+                ];
+
+                $payment = null;
+
+                if ($formaPagamento['id_tipo'] === 11) {
+                    $payment = $this->gerarBoletoApenas($dataPagamento);
+                } elseif ($formaPagamento['id_tipo'] === 13) {
+                    $payment = $this->gerarPixApenas($dataPagamento);
+                }
+
+                if ($payment) {
+                    $contasController->updateOnly([
+                        'descricao' => $conta['descricao'],
+                        'conta_pagamento' => [
+                            'create' => [
+                                [
+                                    'id_pagamento' => $payment['id'],
+                                ]
+                            ]
+                        ]
+                    ]);
+
+                    $contasAssociadas = $contasController->findOnly([
+                        'filter' => [
+                            'token_unico' => $conta['token_unico'],
+                        ]
+                    ]);
+
+                    if($contasAssociadas) {
+                        foreach($contasAssociadas as $contaAssociada) {
+                            if($contaAssociada['id'] !== $conta['id']) {
+                                $contasControllerAssociada = new ContasController($contaAssociada['id']);
+                                $contasControllerAssociada->updateOnly([
+                                    'descricao' => $contaAssociada['descricao'],
+                                    'conta_pagamento' => [
+                                        'create' => [
+                                            [
+                                                'id_pagamento' => $payment['id'],
+                                            ]
+                                        ]
+                                    ]
+                                ]);
+                            }
+                        }
+                    }
+
+                    return $contasController->findOnly([
+                        'filter' => [
+                            'id' => $conta['id']
+                        ],
+                        'includes' => [
+                            'contas_usuarios' => [
+                                "includes" => [
+                                    'usuarios' => true
+                                ]
+                            ],
+                            'formas_pagamento' => true,
+                            'empresas' => true,
+                        ],
+                        'limit' => 1
+                    ]);
+                } else {
+                    throw new \Exception("Erro ao gerar o pagamento no Mercado Pago");
+                }
+            } else {
+                throw new \Exception("Não é possível gerar o pagamento para essa data de vencimento");
+            }
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
     public function gerarBoletoApenas($data)
     {
         try {
@@ -478,7 +618,7 @@ class MercadoPagoController extends ControllerBase
         }
     }
 
-    private function cancelarApenas($id)
+    public function cancelarApenas($id)
     {
         try {
             $mercadoPagamentoModel = new MercadoPagoModel($id);
@@ -486,24 +626,20 @@ class MercadoPagoController extends ControllerBase
             $client = new PaymentClient();
             $cancelledPayment = $client->cancel($pagamentoCurrent['payment_id']);
 
-            $contaPagamentoController = new ContasController();
-            $contasPagamento = $contaPagamentoController->findOnly([
-                'filter' => [
-                    'id_pagamento_mercado_pago' => $id
-                ]
-            ]);
-
-            foreach ($contasPagamento as $contaPagamento) {
-                $contaPagamentoControllerInstance = new ContasController($contaPagamento['id']);
-                $contaPagamentoControllerInstance->update([
-                    'situacao' => 'CA'
-                ]);
-            }
-
             return $mercadoPagamentoModel->update([
                 'status' => $cancelledPayment->status,
                 'payment_data' => json_encode($cancelledPayment)
             ]);
+        } catch (MPApiException $e) {
+            $apiResponse = $e->getApiResponse();
+            $content = $apiResponse ? $apiResponse->getContent() : null;
+
+            throw new \Exception(json_encode([
+                "success" => false,
+                "message" => "Erro na API do Mercado Pago: " . $e->getMessage(),
+                "status_code" => $e->getStatusCode(),
+                "details" => $content
+            ]));
         } catch (\Exception $e) {
             throw new \Exception($e->getMessage());
         }

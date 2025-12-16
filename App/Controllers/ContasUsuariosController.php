@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use Dotenv\Dotenv;
 use App\Models\ContasUsuariosModel;
+use App\Models\UtilsModel;
 
 class ContasUsuariosController extends ControllerBase
 {
@@ -277,7 +278,7 @@ class ContasUsuariosController extends ControllerBase
             'token_unico' => $tokenUnico,
           ]);
 
-          $dias = $this->diasFaltantes($data['vencimento']);
+          $dias = UtilsModel::diasFaltantes($data['vencimento']);
 
           if ($dias < 28) {
             $mercadoPagoController = new MercadoPagoController();
@@ -426,33 +427,6 @@ class ContasUsuariosController extends ControllerBase
     } catch (\Exception $e) {
       http_response_code(500);
       echo json_encode(["message" => $e->getMessage()]);
-    }
-  }
-
-  /**
-   * Calcula quantos dias faltam para uma determinada data
-   * 
-   * @param string $data Data no formato YYYY-MM-DD
-   * @return int Número de dias faltantes (negativo se a data já passou)
-   */
-  private function diasFaltantes($data)
-  {
-    try {
-      $dataFutura = new \DateTime($data);
-      $dataAtual = new \DateTime();
-
-      $dataFutura->setTime(0, 0, 0);
-      $dataAtual->setTime(0, 0, 0);
-
-      $diferenca = $dataAtual->diff($dataFutura);
-
-      if ($dataFutura < $dataAtual) {
-        return -$diferenca->days;
-      }
-
-      return $diferenca->days;
-    } catch (\Exception $e) {
-      throw new \Exception("Data inválida: " . $e->getMessage());
     }
   }
 }

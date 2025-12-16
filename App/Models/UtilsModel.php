@@ -143,4 +143,31 @@ class UtilsModel
             ];
         }
     }
+
+    /**
+     * Calcula quantos dias faltam para uma determinada data
+     * 
+     * @param string $data Data no formato YYYY-MM-DD
+     * @return int Número de dias faltantes (negativo se a data já passou)
+     */
+    public static function diasFaltantes($data)
+    {
+        try {
+            $dataFutura = new \DateTime($data);
+            $dataAtual = new \DateTime();
+
+            $dataFutura->setTime(0, 0, 0);
+            $dataAtual->setTime(0, 0, 0);
+
+            $diferenca = $dataAtual->diff($dataFutura);
+
+            if ($dataFutura < $dataAtual) {
+                return -$diferenca->days;
+            }
+
+            return $diferenca->days;
+        } catch (\Exception $e) {
+            throw new \Exception("Data inválida: " . $e->getMessage());
+        }
+    }
 }

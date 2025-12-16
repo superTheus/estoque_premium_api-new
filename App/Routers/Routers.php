@@ -421,6 +421,11 @@ class Routers
                     $data = json_decode(file_get_contents('php://input'), true);
                     $contasController->update($data);
                 });
+
+                $router->get('/gerar-pagamento/{id}', function ($id) {
+                    $contasController = new MercadoPagoController();
+                    $contasController->gerarPagamentoPorConta($id);
+                });
             });
 
             $router->mount('/fiscal', function () use ($router) {

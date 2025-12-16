@@ -198,7 +198,106 @@ class ContasController extends ControllerBase
   public function update($data)
   {
     try {
+      $currentData = $this->model->current();
       $result = $this->updateOnly($data);
+
+      if ($currentData['situacao'] !== $result['situacao'] && ($result['situacao'] === 'PE' || $result['situacao'] === 'CA')) {
+        $formaPagamentoController = new FormasPagamentoController();
+        $formaPagamento = $formaPagamentoController->findOnly([
+          'filter' => [
+            'id' => $result['id_forma']
+          ],
+          'limit' => 1
+        ]);
+
+        $conta = $this->findOnly([
+          'filter' => [
+            'id' => $result['id']
+          ],
+          "includes" => [
+            'conta_pagamento' => [
+              'includes' => [
+                'mercado_pago_pagamentos' => true
+              ]
+            ]
+          ],
+          'limit' => 1
+        ]);
+
+        if ($conta && count($conta) > 0) {
+          $conta = $conta[0];
+        } else {
+          throw new \Exception("Conta não encontrada para verificar forma de pagamento");
+        }
+
+        $formaBoleto = false;
+        $boletoExistente = false;
+
+        foreach ($conta['conta_pagamento'] as $pagamento) {
+          if ($pagamento['mercado_pago_pagamentos']['tipo'] === 'B') {
+            $boletoExistente = $pagamento['mercado_pago_pagamentos'];
+          }
+        }
+
+        if ($formaPagamento && count($formaPagamento) > 0) {
+          $formaPagamento = $formaPagamento[0];
+
+          if ($formaPagamento['id_tipo'] === 11) {
+            $formaBoleto = true;
+          }
+        }
+
+        if (($currentData['vencimento'] !== $result['vencimento'] || $currentData['valor'] !== $result['valor']) && $result['situacao'] === 'PE') {
+          if ($boletoExistente) {
+            $mercadoPagoController = new MercadoPagoController();
+            $mercadoPagoController->cancelarApenas($boletoExistente['id']);
+          }
+
+          if ($formaBoleto) {
+            $mercadoPagoController = new MercadoPagoController();
+            try {
+              $mercadoPagoController->gerarPagamentoPorConta($result['id']);
+              $result = $this->findOnly([
+                'filter' => [
+                  'id' => $result['id']
+                ],
+                "includes" => [
+                  "conta_pagamento" => [
+                    "includes" => [
+                      "mercado_pago_pagamentos" => true
+                    ]
+                  ]
+                ],
+                'limit' => 1
+              ])[0];
+            } catch (\Exception $e) {
+              throw new \Exception($e->getMessage());
+            }
+          }
+        } else if ($result['situacao'] === 'CA') {
+          if ($boletoExistente) {
+            $mercadoPagoController = new MercadoPagoController();
+            $mercadoPagoController->cancelarApenas($boletoExistente['id']);
+          }
+
+          $contasAssociadas = $this->findOnly([
+            'filter' => [
+              'token_unico' => $conta['token_unico'],
+            ]
+          ]);
+
+          if ($contasAssociadas) {
+            foreach ($contasAssociadas as $contaAssociada) {
+              if ($contaAssociada['id'] !== $conta['id']) {
+                $contasControllerAssociada = new ContasController($contaAssociada['id']);
+                $contasControllerAssociada->updateOnly([
+                  'situacao' => 'CA'
+                ]);
+              }
+            }
+          }
+        }
+      }
 
       http_response_code(200);
       echo json_encode($result);
@@ -524,7 +623,7 @@ class ContasController extends ControllerBase
         'limit' => 1
       ]);
 
-      if($contaRetorno && count($contaRetorno) > 0) {
+      if ($contaRetorno && count($contaRetorno) > 0) {
         $contaRetorno = $contaRetorno[0];
       } else {
         throw new \Exception("Erro ao gerar pagamento da conta");
