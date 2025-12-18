@@ -241,43 +241,41 @@ class ContasUsuariosController extends ControllerBase
               'id_conta' => $contaAdm['id'],
             ]);
 
-            if ($geraFinanceiro) {
-              $contasGeradas[] = $contasController->createOnly([
-                'id_conta' => $contaAdm['id'],
-                'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
-                'id_cliente' => $cliente['id'],
-                'id_forma' => $forma['id'] ?? null,
-                'descricao'  => 'Assinatura mensal - ' . $data['responsavel'],
-                'valor' => $data['valor_mensal'] ?? 0.00,
-                'origem' => 'M',
-                'natureza' => 'R',
-                'condicao' => 'A',
-                'vencimento' => $data['vencimento'],
-                'observacoes' => 'Geração automática de conta mensalidade',
-                'situacao' => 'PE',
-                'token_unico' => $tokenUnico,
-              ]);
-            }
+            $contasGeradas[] = $contasController->createOnly([
+              'id_conta' => $contaAdm['id'],
+              'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
+              'id_cliente' => $cliente['id'],
+              'id_forma' => $forma['id'] ?? null,
+              'descricao'  => 'Assinatura mensal - ' . $data['responsavel'],
+              'valor' => $data['valor_mensal'] ?? 0.00,
+              'origem' => 'M',
+              'natureza' => 'R',
+              'condicao' => 'A',
+              'vencimento' => $data['vencimento'],
+              'observacoes' => 'Geração automática de conta mensalidade',
+              'situacao' => 'PE',
+              'token_unico' => $tokenUnico,
+            ]);
           }
         }
 
-        if ($geraFinanceiro) {
-          $contasGeradas[] = $contasController->createOnly([
-            'id_conta' => $result['id'],
-            'id_empresa' => $empresa['id'] ?? null,
-            'id_cliente' => null,
-            'id_forma' => $boleto['id'] ?? null,
-            'descricao'  => 'Mensalidade do Sistema',
-            'valor' => $data['valor_mensal'] ?? 0.00,
-            'origem' => 'M',
-            'natureza' => 'D',
-            'condicao' => 'A',
-            'vencimento' => $data['vencimento'],
-            'observacoes' => 'Geração automática de conta de mensalidade do sistema',
-            'situacao' => 'PE',
-            'token_unico' => $tokenUnico,
-          ]);
+        $contasGeradas[] = $contasController->createOnly([
+          'id_conta' => $result['id'],
+          'id_empresa' => $empresa['id'] ?? null,
+          'id_cliente' => null,
+          'id_forma' => $boleto['id'] ?? null,
+          'descricao'  => 'Mensalidade do Sistema',
+          'valor' => $data['valor_mensal'] ?? 0.00,
+          'origem' => 'M',
+          'natureza' => 'D',
+          'condicao' => 'A',
+          'vencimento' => $data['vencimento'],
+          'observacoes' => 'Geração automática de conta de mensalidade do sistema',
+          'situacao' => 'PE',
+          'token_unico' => $tokenUnico,
+        ]);
 
+        if ($geraFinanceiro) {
           $dias = UtilsModel::diasFaltantes($data['vencimento']);
 
           if ($dias < 28) {
