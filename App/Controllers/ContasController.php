@@ -188,7 +188,7 @@ class ContasController extends ControllerBase
 
         return $result;
       } else {
-        throw new \Exception("User not found");
+        throw new \Exception("Conta não encontrada para atualização");
       }
     } catch (\Exception $e) {
       throw new \Exception($e->getMessage());
@@ -247,10 +247,19 @@ class ContasController extends ControllerBase
           }
         }
 
+        $erros = [];
+
         if (($currentData['vencimento'] !== $result['vencimento'] || $currentData['valor'] !== $result['valor']) && $result['situacao'] === 'PE') {
           if ($boletoExistente) {
             $mercadoPagoController = new MercadoPagoController();
-            $mercadoPagoController->cancelarApenas($boletoExistente['id']);
+
+            try {
+              $mercadoPagoController->cancelarApenas($boletoExistente['id']);
+            } catch (\Exception $e) {
+              $erros[] = [
+                "cancelar_boleto" => $e->getMessage()
+              ];
+            }
           }
 
           if ($formaBoleto) {
@@ -271,7 +280,54 @@ class ContasController extends ControllerBase
                 'limit' => 1
               ])[0];
             } catch (\Exception $e) {
-              throw new \Exception($e->getMessage());
+              $erros[] = [
+                "gerar_pagamento" => $e->getMessage()
+              ];
+            }
+          }
+
+          if ($result['origem'] === 'M') {
+            $contasAssociadas = $this->findOnly([
+              'filter' => [
+                'token_unico' => $conta['token_unico'],
+              ]
+            ]);
+
+            $contaCliente = null;
+
+            if ($contasAssociadas) {
+              foreach ($contasAssociadas as $contaAssociada) {
+                if ($contaAssociada['natureza'] === "D") {
+                  $contaCliente = $contaAssociada;
+                }
+
+                if ($contaAssociada['id'] !== $conta['id']) {
+                  $contasControllerAssociada = new ContasController($contaAssociada['id']);
+                  $contasControllerAssociada->updateOnly([
+                    'vencimento' => $result['vencimento'],
+                    'valor' => $result['valor'],
+                  ]);
+                }
+              }
+            }
+
+            if ($contaCliente) {
+              $contaUsuariosController = new ContasUsuariosController();
+              $contaUsuario = $contaUsuariosController->findOnly([
+                'filter' => [
+                  'id' => $contaCliente['id_conta']
+                ],
+                'limit' => 1
+              ]);
+
+              if ($contaUsuario && count($contaUsuario) > 0) {
+                $contaUsuario = $contaUsuario[0];
+                $contaUsuariosControllerAssociada = new ContasUsuariosController($contaUsuario['id']);
+                $contaUsuariosControllerAssociada->updateOnly([
+                  'valor_mensal' => $result['valor'],
+                  'vencimento' => $result['vencimento'],
+                ]);
+              }
             }
           }
         } else if ($result['situacao'] === 'CA') {
