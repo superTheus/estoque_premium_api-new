@@ -572,6 +572,7 @@ class FiscalController extends ApiModel
 
       $dadosEmissao = [
         "cnpj" => $empresa['cnpj'],
+        "cnpj_consulta" => $empresa['cnpj_consulta'],
         "cfop" => $cfopNota,
         "operacao" => $operacao['descricao'],
         "consumidor_final" => $consumidorFinal,

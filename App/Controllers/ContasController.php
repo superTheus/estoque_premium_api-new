@@ -202,6 +202,42 @@ class ContasController extends ControllerBase
       $result = $this->updateOnly($data);
 
       if ($result['situacao'] === 'PE' || $result['situacao'] === 'CA') {
+        $clienteContaSistema = false;
+
+        $clientesController = new ClientesController();
+        $cliente = $clientesController->findOnly([
+          'filter' => [
+            'id' => $result['id_cliente']
+          ],
+          'limit' => 1
+        ]);
+
+        if ($cliente && count($cliente) > 0) {
+          $cliente = $cliente[0];
+        } else {
+          $cliente = null;
+        }
+
+        if($cliente){
+          $empresasController = new EmpresasController();
+          $empresa = $empresasController->findOnly([
+            'filter' => [
+              'cnpj' => $cliente['documento']
+            ],
+            'limit' => 1,
+            "includes" => [
+              'contas_usuarios' => true
+            ]
+          ]);
+
+          if($empresa && count($empresa) > 0){
+            $empresa = $empresa[0];
+            $clienteContaSistema = $empresa['contas_usuarios'][0];
+          }
+        }
+
+        // die(json_encode($clienteContaSistema));
+
         $formaPagamentoController = new FormasPagamentoController();
         $formaPagamento = $formaPagamentoController->findOnly([
           'filter' => [
@@ -250,6 +286,14 @@ class ContasController extends ControllerBase
         $erros = [];
 
         if (($currentData['vencimento'] !== $result['vencimento'] || $currentData['valor'] !== $result['valor']) && $result['situacao'] === 'PE') {
+          if($clienteContaSistema) {
+            $contasUsuariosController = new ContasUsuariosController($clienteContaSistema['id']);
+            $contasUsuariosController->updateOnly([
+              'vencimento' => $result['vencimento'],
+              'valor_mensal' => $result['valor']
+            ]);
+          }
+
           if ($boletoExistente) {
             $mercadoPagoController = new MercadoPagoController();
 
