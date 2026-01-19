@@ -13,7 +13,7 @@ class FiscalController extends ApiModel
 
   /**
    * Valida todos os dados necessários para emissão de nota fiscal
-   * 
+   *
    * @param array $empresa Dados da empresa
    * @param array $operacao Dados da operação
    * @param array|null $cliente Dados do cliente (opcional para NFCe)
@@ -250,7 +250,7 @@ class FiscalController extends ApiModel
 
   /**
    * Determina o CFOP da nota baseado no estado do cliente vs empresa
-   * 
+   *
    * @param array $empresa Dados da empresa emitente
    * @param array|null $cliente Dados do cliente (null para consumidor final)
    * @param array $operacao Dados da operação fiscal
@@ -284,7 +284,7 @@ class FiscalController extends ApiModel
   /**
    * Determina o CFOP do produto baseado no estado do cliente vs empresa
    * Converte o CFOP do produto para estadual ou interestadual conforme necessário
-   * 
+   *
    * @param array $empresa Dados da empresa emitente
    * @param array|null $cliente Dados do cliente (null para consumidor final)
    * @param array $produto Dados do produto da venda
@@ -331,13 +331,13 @@ class FiscalController extends ApiModel
 
   /**
    * Determina se a operação é com consumidor final
-   * 
+   *
    * Regras SEFAZ:
    * - Pessoa Física (CPF) = Sempre consumidor final
    * - Pessoa Jurídica (CNPJ) sem Inscrição Estadual = Consumidor final (não contribuinte)
    * - Pessoa Jurídica (CNPJ) com Inscrição Estadual válida = Não é consumidor final (contribuinte)
    * - Campo consumidor_final no cadastro do cliente = "S" = Consumidor final
-   * 
+   *
    * @param array|null $cliente Dados do cliente
    * @return string "S" para consumidor final, "N" caso contrário
    */
@@ -584,7 +584,12 @@ class FiscalController extends ApiModel
         "troco" => $venda['total_troco'],
         "total_pago" => $venda['total_pago'],
         "produtos" => $produtosNota,
-        "pagamentos" => $pagamentosNota
+        "pagamentos" => $pagamentosNota,
+        "fiscal" => [
+          "aliquota_ibs_estadual" => 0.10,
+          "aliquota_ibs_municipal" => 0.0,
+          "aliquota_cbs" => 0.90
+        ]
       ];
 
       if ($tipo === 'NFCE') {

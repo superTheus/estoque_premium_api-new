@@ -77,7 +77,7 @@ class ApiModel
     if(!isset($data['senha'])) {
       throw new \Exception("Senha é obrigatória.");
     }
-    
+
     return $this->request('fiscal/certicate/test', 'POST', $data);
   }
 
@@ -149,7 +149,7 @@ class ApiModel
   {
     return $this->request('estados', 'POST', $data);
   }
-  
+
   public function estadosUnico($uf)
   {
     return $this->request('estados/' . $uf, 'GET');
@@ -174,7 +174,7 @@ class ApiModel
   {
     return $this->request('fiscal/nfe', 'POST', $data);
   }
-  
+
   public function cancelarNfce($data)
   {
     return $this->request('fiscal/nfce/cancel', 'POST', $data);
