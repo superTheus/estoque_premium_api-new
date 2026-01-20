@@ -740,19 +740,6 @@ class FiscalController extends ApiModel
         $messagemErro = 'Erros: ' . implode(', ', $errors['error_tags']);
       }
 
-      // Tenta registrar o erro na venda sem mascarar o erro original
-      try {
-        $vendasController = new VendasController($idVenda);
-        $vendasController->updateOnly([
-          'nota_emitida' => 'S',
-          'status_nota' => 'F',
-          'messagem_error' => $messagemErro,
-          'xml' => $errors['xml'] ?? null
-        ]);
-      } catch (\Exception $inner) {
-        error_log('[FiscalController::emitir] Falha ao persistir erro na venda: ' . $inner->getMessage());
-      }
-
       http_response_code(400);
       echo json_encode($errors);
     }
