@@ -38,6 +38,13 @@ class VendasModel extends BaseModel
                 'model' => ContasModel::class,
                 'min_count' => 0,
                 'foreign_key' => 'id_venda',
+            ],
+            [
+                'property' => 'cartas_correcao',
+                'table' => 'cartas_correcao',
+                'model' => CartasCorrecaoModel::class,
+                'min_count' => 0,
+                'foreign_key' => 'id_venda',
             ]
         ];
         parent::__construct($id);

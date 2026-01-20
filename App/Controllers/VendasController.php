@@ -390,7 +390,7 @@ class VendasController extends ControllerBase
                         $agora = new \DateTime();
                         $intervalo = $emissao->diff($agora);
                         $minutosDecorridos = ($intervalo->days * 24 * 60) + ($intervalo->h * 60) + $intervalo->i;
-                        
+
                         $podeCancelarNota = true;
 
                         if($currentData['tipo'] == 'NFCE' && $minutosDecorridos > 30) {
