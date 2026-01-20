@@ -652,6 +652,112 @@ class FiscalController extends ApiModel
     }
   }
 
+  public function cartaCorrecao($idVenda, $data)
+  {
+    try {
+      if (!$idVenda) {
+        throw new \Exception('ID da venda é obrigatório para emissão de nota fiscal.');
+      }
+
+      $vendasController = new VendasController($idVenda);
+      $response = $vendasController->findOnly([
+        "filter" => [
+          "id" => $idVenda
+        ],
+        "includes" => [
+          "empresas" => true,
+          "operacoes" => true,
+          "clientes" => true,
+          "venda_pagamentos" => [
+            "includes" => [
+              "formas_pagamento" => [
+                "includes" => [
+                  "tipos_pagamento" => true
+                ]
+              ]
+            ]
+          ],
+          "venda_produtos" => [
+            "includes" => [
+              "produtos" => true
+            ]
+          ],
+        ]
+      ]);
+
+      if (!isset($response[0]) || empty($response[0])) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Venda não encontrada.']);
+        return;
+      }
+
+      if (empty($data['texto'])) {
+        throw new \Exception('Texto da carta de correção é obrigatório.');
+      }
+
+      if (strlen($data['texto']) < 15) {
+        throw new \Exception('Carta de correção precisa ter no mínimo 15 caracteres.');
+      }
+
+      $venda = $response[0];
+      $empresa = $venda['empresas'][0];
+
+      $dadosEmissao = [
+        "cnpj" => $empresa['cnpj'],
+        "chave" => $venda['chave'],
+        "carta" => $data['texto']
+      ];
+
+      $notaEmitida = $this->cce($dadosEmissao);
+
+      $cartaCorrecaoModel = new CartasCorrecaoController();
+      $cartaRegistrada = $cartaCorrecaoModel->createOnly([
+        "id_venda" => $venda['id'],
+        "chave" => $notaEmitida['chave'],
+        "protocolo" => $notaEmitida['protocolo'],
+        "sequencia" => $notaEmitida['sequencia'],
+        "link" => $notaEmitida['link'],
+        "xml" => $notaEmitida['xml'],
+        "pdf" => $notaEmitida['pdf'],
+        "texto" => $data['texto']
+      ]);
+
+      http_response_code(200);
+      echo json_encode($cartaRegistrada);
+    } catch (\Exception $e) {
+      $rawMessage = $e->getMessage();
+      error_log('[FiscalController::emitir] Erro ao emitir nota: ' . $rawMessage);
+
+      // Tenta interpretar como JSON; se falhar, usa mensagem simples
+      $errors = json_decode($rawMessage, true);
+      if (json_last_error() !== JSON_ERROR_NONE || $errors === null) {
+        $errors = ['error' => $rawMessage];
+      }
+
+      // Monta mensagem amigável
+      $messagemErro = $errors['error'] ?? ($errors['message'] ?? 'Erro ao emitir nota.');
+      if (isset($errors['error_tags']) && is_array($errors['error_tags']) && count($errors['error_tags']) > 0) {
+        $messagemErro = 'Erros: ' . implode(', ', $errors['error_tags']);
+      }
+
+      // Tenta registrar o erro na venda sem mascarar o erro original
+      try {
+        $vendasController = new VendasController($idVenda);
+        $vendasController->updateOnly([
+          'nota_emitida' => 'S',
+          'status_nota' => 'F',
+          'messagem_error' => $messagemErro,
+          'xml' => $errors['xml'] ?? null
+        ]);
+      } catch (\Exception $inner) {
+        error_log('[FiscalController::emitir] Falha ao persistir erro na venda: ' . $inner->getMessage());
+      }
+
+      http_response_code(400);
+      echo json_encode($errors);
+    }
+  }
+
   public function cancelarNotaSomente($idVenda)
   {
     try {

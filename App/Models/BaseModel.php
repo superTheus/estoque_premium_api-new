@@ -165,6 +165,12 @@ abstract class BaseModel extends Connection
             "model" => WebhookLogsModel::class,
             "controller" => Controllers\WebhookLogsController::class,
         ],
+        [
+            "property" => "cartas_correcao",
+            "table" => "cartas_correcao",
+            "model" => CartasCorrecaoModel::class,
+            "controller" => Controllers\CartasCorrecaoController::class,
+        ],
     ];
 
     public function __construct($id = null)
@@ -407,9 +413,9 @@ abstract class BaseModel extends Connection
         $stmt = $pdo->query("SELECT COLUMN_NAME,
                                 REFERENCED_TABLE_NAME,
                                 REFERENCED_COLUMN_NAME
-                            FROM 
+                            FROM
                                 INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-                            WHERE TABLE_SCHEMA = DATABASE() AND 
+                            WHERE TABLE_SCHEMA = DATABASE() AND
                                 TABLE_NAME = '{$this->table}' AND
                                 REFERENCED_TABLE_NAME IS NOT NULL");
 
