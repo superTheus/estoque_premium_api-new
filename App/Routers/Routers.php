@@ -439,7 +439,7 @@ class Routers
                     $fiscalController->emitirNFE($venda);
                 });
 
-                $router->post('/carta/{venda}', function ($venda) {
+                $router->post('/cce/{venda}', function ($venda) {
                     $data = json_decode(file_get_contents('php://input'), true);
                     $fiscalController = new FiscalController();
                     $fiscalController->cartaCorrecao($venda, $data);
