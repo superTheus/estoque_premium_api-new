@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\ApiModel;
+use App\Models\VendasModel;
 
 class FiscalController extends ApiModel
 {
@@ -745,7 +746,7 @@ class FiscalController extends ApiModel
     }
   }
 
-  public function cancelarNotaSomente($idVenda)
+  public function cancelarNotaSomente($idVenda, $updateSale = false)
   {
     try {
       if (!$idVenda) {
@@ -776,15 +777,14 @@ class FiscalController extends ApiModel
         "justificativa" => 'Cancelamento solicitado pelo contribuinte.'
       ];
 
-      if ($venda['tipo'] === 'NFCE') {
-        $cancelamento = $this->cancelarNfce($dadosCancelamento);
-      } else {
-        $cancelamento = $this->cancelarNfe($dadosCancelamento);
-      }
+      $cancelamento = $this->cancelarNfe($dadosCancelamento);
 
-      if($venda['status'] !== 'CA') {
-        $venda = $vendasController->updateOnly([
-          "status" => "CA"
+      if($updateSale) {
+        $vendaModel = new VendasModel($venda['id']);
+        $vendaModel->updateOnly([
+          "status" => "CA",
+          "url" => $cancelamento['link'],
+          "xml" => $cancelamento['xml']
         ]);
       }
 
