@@ -608,6 +608,7 @@ class FiscalController extends ApiModel
           "pdf" => $notaEmitida['pdf'],
           "xml" => $notaEmitida['xml'],
           'tipo' => $tipo,
+          'dthr_emissao' => date('Y-m-d H:i:s'),
           "status_nota" => "S",
           "messagem_error" => ""
         ]);
@@ -784,7 +785,8 @@ class FiscalController extends ApiModel
         $vendaModel->updateOnly([
           "status" => "CA",
           "url" => $cancelamento['link'],
-          "xml" => $cancelamento['xml']
+          "xml" => $cancelamento['xml'],
+          "status_nota" => "C"
         ]);
       }
 

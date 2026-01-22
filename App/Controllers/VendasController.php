@@ -336,7 +336,7 @@ class VendasController extends ControllerBase
                         'filter' => ['id_venda' => $currentData['id']]
                     ]);
 
-                    if($movimentacoes) {
+                    if ($movimentacoes) {
                         foreach ($movimentacoes as $movimentacao) {
                             $produtoEstoqueController = new ProdutosEstoqueController();
                             $estoque = $produtoEstoqueController->findOnly([
@@ -384,34 +384,6 @@ class VendasController extends ControllerBase
                             "obervacoes" => ($conta['obervacoes'] ? $conta['obervacoes'] . " | " : "") . "Conta cancelada devido ao cancelamento da venda #" . str_pad($currentData['id'], 5, '0', STR_PAD_LEFT)
                         ]);
                     }
-
-                    if ($currentData['nota_emitida'] === 'S') {
-                        $emissao = new \DateTime($currentData['dthr_emissao']);
-                        $agora = new \DateTime();
-                        $intervalo = $emissao->diff($agora);
-                        $minutosDecorridos = ($intervalo->days * 24 * 60) + ($intervalo->h * 60) + $intervalo->i;
-
-                        $podeCancelarNota = true;
-
-                        if($currentData['tipo'] == 'NFCE' && $minutosDecorridos > 30) {
-                            $this->model->update([
-                                'messagem_error' => 'Prazo para cancelamento excedido (30 minutos). Favor realizar uma carta de correção.',
-                            ]);
-
-                            $podeCancelarNota = false;
-                        } else if($currentData['tipo'] == 'NFE' && $minutosDecorridos > 1440) {
-                            $this->model->update([
-                                'messagem_error' => 'Prazo para cancelamento excedido (24 horas). Favor realizar uma carta de correção.',
-                            ]);
-
-                            $podeCancelarNota = false;
-                        }
-
-                        if($podeCancelarNota) {
-                            $fiscalController = new FiscalController();
-                            $fiscalController->cancelarNotaSomente($currentData['id']);
-                        }
-                    }
                 }
 
                 return $result;
@@ -430,6 +402,70 @@ class VendasController extends ControllerBase
 
             http_response_code(200);
             echo json_encode($result);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(["message" => $e->getMessage()]);
+        }
+    }
+
+    public function cancelaVendaComNota($idVenda)
+    {
+        try {
+            if (!$idVenda) {
+                throw new \Exception("ID da venda não foi informado.");
+            }
+
+            $vendaController = new VendasController($idVenda);
+            $vendaData = $vendaController->findOnly([
+                "filter" => ['id' => $idVenda],
+            ]);
+
+            if (!$vendaData) {
+                throw new \Exception("Venda não encontrada.");
+            }
+
+            $vendaData = $vendaData[0];
+
+            $vendaController->updateOnly([
+                "status" => 'CA'
+            ]);
+
+            if ($vendaData['nota_emitida'] === 'S') {
+                $emissao = new \DateTime($vendaData['dthr_emissao']);
+                $agora = new \DateTime();
+
+                $intervalo = $emissao->diff($agora);
+                $minutosDecorridos = ($intervalo->days * 24 * 60) + ($intervalo->h * 60) + $intervalo->i;
+
+                $podeCancelarNota = true;
+
+                if ($vendaData['tipo'] == 'NFCE' && $minutosDecorridos > 30) {
+                    $this->model->update([
+                        'mensagem_avisos' => 'Prazo para cancelamento excedido (30 minutos). Favor emitir nota de devolução.',
+                    ]);
+
+                    $podeCancelarNota = false;
+                } else if ($vendaData['tipo'] == 'NFE' && $minutosDecorridos > 1440) {
+                    $this->model->update([
+                        'mensagem_avisos' => 'Prazo para cancelamento excedido (24 horas). Favor emitir nota de devolução.',
+                    ]);
+
+                    $podeCancelarNota = false;
+                }
+
+                if ($podeCancelarNota) {
+                    $fiscalController = new FiscalController();
+                    $fiscalController->cancelarNotaSomente($vendaData['id']);
+                }
+            }
+
+            $vendaController = new VendasController($idVenda);
+            $vendaData = $vendaController->findOnly([
+                "filter" => ['id' => $idVenda],
+            ]);
+
+            http_response_code(200);
+            echo json_encode($vendaData[0]);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(["message" => $e->getMessage()]);

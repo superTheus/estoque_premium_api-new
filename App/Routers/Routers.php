@@ -446,8 +446,8 @@ class Routers
                 });
 
                 $router->get('/cancelar/{venda}', function ($venda) {
-                    $fiscalController = new FiscalController();
-                    $fiscalController->cancelarNota($venda);
+                    $vendasController = new VendasController($venda);
+                    $vendasController->cancelaVendaComNota($venda);
                 });
 
                 $router->post('/cest', function () {
