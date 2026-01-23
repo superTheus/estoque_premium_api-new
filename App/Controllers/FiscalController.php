@@ -779,16 +779,19 @@ class FiscalController extends ApiModel
       ];
 
       $cancelamento = $this->cancelarNfe($dadosCancelamento);
+      $vendaModel = new VendasModel($venda['id']);
 
       if($updateSale) {
-        $vendaModel = new VendasModel($venda['id']);
         $vendaModel->updateOnly([
           "status" => "CA",
-          "url" => $cancelamento['link'],
-          "xml" => $cancelamento['xml'],
-          "status_nota" => "C"
         ]);
       }
+
+      $vendaModel->updateOnly([
+        "url" => $cancelamento['link'],
+        "xml" => $cancelamento['xml'],
+        "status_nota" => "C"
+      ]);
 
       return $cancelamento;
     } catch (\Exception $e) {
