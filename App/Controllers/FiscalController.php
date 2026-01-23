@@ -782,12 +782,12 @@ class FiscalController extends ApiModel
       $vendaModel = new VendasModel($venda['id']);
 
       if($updateSale) {
-        $vendaModel->updateOnly([
+        $vendaModel->update([
           "status" => "CA",
         ]);
       }
 
-      $vendaModel->updateOnly([
+      $vendaModel->update([
         "url" => $cancelamento['link'],
         "xml" => $cancelamento['xml'],
         "status_nota" => "C"
