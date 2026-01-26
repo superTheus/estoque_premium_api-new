@@ -593,6 +593,10 @@ class FiscalController extends ApiModel
         ]
       ];
 
+      if($venda["observacao_nota"]) {
+        $dadosEmissao["observacao"] = $venda["observacao_nota"];
+      }
+
       if ($tipo === 'NFCE') {
         $notaEmitida = $this->nfce($dadosEmissao);
       } else {
