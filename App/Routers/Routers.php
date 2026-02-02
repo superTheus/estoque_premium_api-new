@@ -39,9 +39,9 @@ class Routers
             AuthMiddleware::handle();
         });
 
-        // $router->before('GET|POST|PUT|DELETE|PATCH|OPTIONS', '/root(/.*)?', function () {
-        //     AuthMiddleware::handleRoot();
-        // });
+        $router->before('GET|POST|PUT|DELETE|PATCH|OPTIONS', '/root(/.*)?', function () {
+            AuthMiddleware::handleRoot();
+        });
 
         // $router->before('GET|POST|PUT|DELETE|PATCH|OPTIONS', '/token_validation(/.*)?', function () {
         //     AuthMiddleware::handleToken();
@@ -518,14 +518,14 @@ class Routers
                 });
 
                 $router->mount('/cidades', function () use ($router) {
+                    $router->get('/{uf}/{cidade}', function ($uf, $cidade) {
+                        $fiscalController = new FiscalController();
+                        $fiscalController->listCidadesUnica($cidade, $uf);
+                    });
+
                     $router->post('/{uf}', function ($uf) {
                         $fiscalController = new FiscalController();
                         $fiscalController->listCidades($uf);
-                    });
-
-                    $router->get('/{cidade}', function ($cidade) {
-                        $fiscalController = new FiscalController();
-                        $fiscalController->listCidadesUnica($cidade);
                     });
                 });
 
