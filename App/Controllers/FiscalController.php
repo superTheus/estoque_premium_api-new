@@ -460,29 +460,15 @@ class FiscalController extends ApiModel
           "cep" => $cliente["cep"] ?? ""
         ];
       } else {
-        if (!empty($empresa['cidade'])) {
-          $cidadeEmpresa = $this->cidadesUnico($empresa['cidade']);
-          $endereco = [
-            "bairro" => $empresa['bairro'] ?? "",
-            "codigo_municipio" => $cidadeEmpresa['codigo_ibge'] ?? "",
-            "logradouro" => $empresa["logradouro"] ?? "",
-            "municipio" => $empresa["cidade"] ?? "",
-            "numero" => $empresa["numero"] ?? "S/N",
-            "uf" => $empresa["estado"] ?? "",
-            "cep" => $empresa["cep"] ?? ""
-          ];
-          $cidade = $cidadeEmpresa;
-        } else {
-          $endereco = [
-            "bairro" => "",
-            "codigo_municipio" => "",
-            "logradouro" => "",
-            "municipio" => "",
-            "numero" => "S/N",
-            "uf" => "",
-            "cep" => ""
-          ];
-        }
+        $endereco = [
+          "bairro" => "",
+          "codigo_municipio" => "",
+          "logradouro" => "",
+          "municipio" => "",
+          "numero" => "S/N",
+          "uf" => "",
+          "cep" => ""
+        ];
       }
 
       if (!$cidade && $tipo === 'NFE') {
@@ -593,7 +579,7 @@ class FiscalController extends ApiModel
         ]
       ];
 
-      if($venda["observacao_nota"]) {
+      if ($venda["observacao_nota"]) {
         $dadosEmissao["observacao"] = $venda["observacao_nota"];
       }
 
@@ -603,7 +589,7 @@ class FiscalController extends ApiModel
         $notaEmitida = $this->nfe($dadosEmissao);
       }
 
-      if($notaEmitida) {
+      if ($notaEmitida) {
         $venda = $vendasController->updateOnly([
           "nota_emitida" => "S",
           "protocolo" => $notaEmitida['protocolo'],
@@ -785,7 +771,7 @@ class FiscalController extends ApiModel
       $cancelamento = $this->cancelarNfe($dadosCancelamento);
       $vendaModel = new VendasModel($venda['id']);
 
-      if($updateSale) {
+      if ($updateSale) {
         $vendaModel->update([
           "status" => "CA",
         ]);
