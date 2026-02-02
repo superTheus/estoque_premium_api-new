@@ -449,7 +449,7 @@ class FiscalController extends ApiModel
       $endereco = null;
 
       if ($cliente) {
-        $cidade = $this->cidadesUnico($cliente['cidade']);
+        $cidade = $this->cidadesUnico($cliente['cidade'], $cliente['estado']);
         $endereco = [
           "bairro" => $cliente['bairro'] ?? "",
           "codigo_municipio" => $cidade['codigo_ibge'] ?? "",
@@ -768,7 +768,13 @@ class FiscalController extends ApiModel
         "justificativa" => 'Cancelamento solicitado pelo contribuinte.'
       ];
 
-      $cancelamento = $this->cancelarNfe($dadosCancelamento);
+      if($venda['tipo'] === 'NFE') {
+        $cancelamento = $this->cancelarNfe($dadosCancelamento);
+      } else {
+        $cancelamento = $this->cancelarNfce($dadosCancelamento);
+      }
+
+
       $vendaModel = new VendasModel($venda['id']);
 
       if ($updateSale) {
@@ -932,10 +938,10 @@ class FiscalController extends ApiModel
     }
   }
 
-  public function listCidadesUnica($cidade)
+  public function listCidadesUnica($cidade, $estado)
   {
     try {
-      echo json_encode($this->cidadesUnico($cidade));
+      echo json_encode($this->cidadesUnico($cidade, $estado));
     } catch (\Exception $e) {
       http_response_code(500);
       echo json_encode(['error' => $e->getMessage()]);
@@ -948,7 +954,7 @@ class FiscalController extends ApiModel
       echo json_encode($this->testeCertificado($data));
     } catch (\Exception $e) {
       http_response_code(400);
-      echo json_encode($e->getMessage());
+      echo json_encode(['error' => $e->getMessage()]);
     }
   }
 
@@ -958,7 +964,7 @@ class FiscalController extends ApiModel
       echo json_encode($this->testeCertificadoPorCnpj($cnpj));
     } catch (\Exception $e) {
       http_response_code(400);
-      echo json_encode($e->getMessage());
+      echo json_encode(['error' => $e->getMessage()]);
     }
   }
 }

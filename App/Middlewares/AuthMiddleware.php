@@ -77,10 +77,9 @@ class AuthMiddleware
 
     $token = $matches[1];
 
-
     try {
       $decoded = JWT::decode($token, new Key($_ENV['SECRET_KEY'], 'HS256'));
-      
+
       $_REQUEST['user'] = $decoded->data;
       $_REQUEST['id_conta'] = $decoded->data->id_conta;
 

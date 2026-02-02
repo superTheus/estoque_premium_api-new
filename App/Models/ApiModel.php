@@ -160,9 +160,9 @@ class ApiModel
     return $this->request('municipios/' . $uf, 'POST');
   }
 
-  public function cidadesUnico($cidade)
+  public function cidadesUnico($cidade, $estado)
   {
-    return $this->request('municipios/' . $cidade, 'GET');
+    return $this->request('municipios/' . $estado . '/' . $cidade, 'GET');
   }
 
   public function nfce($data)
