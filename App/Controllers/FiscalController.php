@@ -542,13 +542,16 @@ class FiscalController extends ApiModel
         ];
       } else {
         $clienteData = [
-          "documento" => $venda["cpf_nota"] ?? "00000000000",
           "nome" => "CONSUMIDOR FINAL",
-          "tipo_documento" => "CPF",
           "tipo_icms" => "9",
           "endereco" => $endereco,
           "inscricao_estadual" => "ISENTO"
         ];
+
+        if($venda["cpf_nota"]) {
+          $clienteData["documento"] = preg_replace('/\D/', '', $venda["cpf_nota"]);
+          $clienteData["tipo_documento"] = strlen($clienteData["documento"]) === 11 ? "CPF" : "CNPJ";
+        }
       }
 
       $dadosEmissao = [
