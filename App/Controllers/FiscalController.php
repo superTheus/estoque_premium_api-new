@@ -477,9 +477,6 @@ class FiscalController extends ApiModel
         ]));
       }
 
-      // Determinar CFOP baseado no estado do cliente vs empresa
-      // Se cliente do mesmo estado da empresa = CFOP estadual (ex: 5102)
-      // Se cliente de outro estado = CFOP interestadual (ex: 6102)
       $cfopNota = $this->determinarCFOP($empresa, $cliente, $operacao);
 
       $produtosNota = [];
@@ -512,20 +509,17 @@ class FiscalController extends ApiModel
         ];
       }
 
-      // Determinar se é consumidor final
-      // Consumidor final = Pessoa Física (CPF) OU Pessoa Jurídica sem Inscrição Estadual válida
-      // Não contribuinte = sempre consumidor final
       $consumidorFinal = $this->determinarConsumidorFinal($cliente);
       $consumidorFinalFlag = $consumidorFinal === "S" ? 1 : 0;
 
       $clienteData = null;
+
       if ($cliente) {
         $documentoLimpo = preg_replace('/\D/', '', $cliente["documento"] ?? '');
         $tipoDocumento = strlen($documentoLimpo) === 11 ? "CPF" : "CNPJ";
         $inscricaoEstadual = trim($cliente["inscricao_estadual"] ?? "");
         $temInscricaoValida = !empty($inscricaoEstadual) && strtoupper($inscricaoEstadual) !== "ISENTO";
 
-        // Força consumidor final para CPF ou ausência de inscrição estadual
         if ($tipoDocumento === "CPF" || !$temInscricaoValida) {
           $consumidorFinal = "S";
           $consumidorFinalFlag = 1;
@@ -548,10 +542,10 @@ class FiscalController extends ApiModel
         ];
       } else {
         $clienteData = [
-          "documento" => "00000000000",
+          "documento" => $venda["cpf_nota"] ?? "00000000000",
           "nome" => "CONSUMIDOR FINAL",
           "tipo_documento" => "CPF",
-          "tipo_icms" => "9", // 9 = Não contribuinte
+          "tipo_icms" => "9",
           "endereco" => $endereco,
           "inscricao_estadual" => "ISENTO"
         ];
