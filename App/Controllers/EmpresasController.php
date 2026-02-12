@@ -124,7 +124,7 @@ class EmpresasController extends ControllerBase
         ]);
 
         $estado = $fiscalController->estadosUnico($data['uf']);
-        $cidade = $fiscalController->cidadesUnico($data['cidade']);
+        $cidade = $fiscalController->cidadesUnico($data['cidade'], $data['uf']);
 
         $data['codigo_uf'] = $estado ? $estado['codigo_ibge'] : null;
         $data['codigo_municipio'] = $cidade ? $cidade['codigo_ibge'] : null;
@@ -356,7 +356,7 @@ class EmpresasController extends ControllerBase
           ]);
 
           $estado = $fiscalController->estadosUnico($data['uf']);
-          $cidade = $fiscalController->cidadesUnico($data['cidade']);
+          $cidade = $fiscalController->cidadesUnico($data['cidade'], $data['uf']);
 
           $data['codigo_uf'] = $estado ? $estado['codigo_ibge'] : null;
           $data['codigo_municipio'] = $cidade ? $cidade['codigo_ibge'] : null;
