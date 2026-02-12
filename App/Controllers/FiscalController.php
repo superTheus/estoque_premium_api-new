@@ -448,6 +448,13 @@ class FiscalController extends ApiModel
       $cidade = null;
       $endereco = null;
 
+      if($operacao['finalidade'] === 4 && !$venda['nota_referenciada']) {
+        http_response_code(400);
+        throw new \Exception(json_encode([
+          "error" => "Operação de devolução (finalidade 4) requer nota referenciada. Por favor, informe a chave da nota original na venda."
+        ]));
+      }
+
       if ($cliente) {
         $cidade = $this->cidadesUnico($cliente['cidade'], $cliente['estado']);
         $endereco = [
@@ -569,6 +576,8 @@ class FiscalController extends ApiModel
         "total_pago" => $venda['total_pago'],
         "produtos" => $produtosNota,
         "pagamentos" => $pagamentosNota,
+        "finalidade" => $operacao['finalidade'] ?? 1,
+        "nota_referencia" => $venda['nota_referenciada'] ?? null,
         "fiscal" => [
           "aliquota_ibs_estadual" => 0.10,
           "aliquota_ibs_municipal" => 0.0,

@@ -108,6 +108,38 @@ class VendasController extends ControllerBase
                 throw new \Exception("Venda informada não foi encontrada.");
             }
 
+            $empresa = new EmpresasController();
+
+            $empresaData = $empresa->findOnly([
+                'filter' => ['id' => $vendaData['id_empresa']]
+            ])[0] ?? null;
+
+            $cliente = new ClientesController();
+            $clienteData = $cliente->findOnly([
+                'filter' => ['id' => $vendaData['id_cliente']]
+            ])[0] ?? null;
+
+            if(!$empresaData) {
+                throw new \Exception("Empresa da venda não foi encontrada.");
+            }
+
+            $produtosCreate = [];
+
+            foreach ($vendaData['venda_produtos'] as $produto) {
+                $produtoCopy = $produto;
+                unset($produtoCopy['id']);
+                unset($produtoCopy['id_venda']);
+
+                $cfop = $operacaoData['cfop_estadual'];
+
+                if($clienteData && $clienteData['uf'] &&$empresaData['uf'] !== $clienteData['uf']) {
+                    $cfop = $operacaoData['cfop_internacional'];
+                }
+
+                $produtoCopy['cfop'] = $cfop;
+                $produtosCreate[] = $produtoCopy;
+            }
+
             $this->create([
                 "id_conta" => $vendaData['id_conta'],
                 "id_empresa" => $vendaData['id_empresa'],
@@ -120,7 +152,7 @@ class VendasController extends ControllerBase
                 "total_troco" => $vendaData['total_troco'],
                 "status" => 'AB',
                 "observacao_nota" => $vendaData['observacao_nota'],
-                "venda_produtos" => $vendaData['venda_produtos'],
+                "venda_produtos" => $produtosCreate,
             ]);
         } catch (\Exception $e) {
             http_response_code(500);
