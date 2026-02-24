@@ -505,7 +505,11 @@ class FiscalController extends ApiModel
           "quantidade" => $produto["quantidade"],
           "total" => $produto["total"],
           "unidade" => $produto["produtos"]['unidade'],
-          "valor" => $produto["preco"]
+          "valor" => $produto["preco"],
+          "cst_pis" => $produto["cst_pis"] ?? "06",
+          "aliquota_pis" => $produto["aliquota_pis"] ?? 0,
+          "cst_cofins" => $produto["cst_cofins"] ?? "06",
+          "aliquota_cofins" => $produto["aliquota_cofins"] ?? 0,
         ];
       }
 
@@ -568,7 +572,7 @@ class FiscalController extends ApiModel
         "operacao" => $operacao['descricao'],
         "consumidor_final" => $consumidorFinal,
         "ind_final" => $consumidorFinalFlag,
-        "observacao" => $venda['observacao_nota'],
+        "observacao" => $venda['observacao_nota'] || $operacao['observacao'] ? ($venda['observacao_nota'] ?? "") . " " . ($operacao['observacao'] ?? "") : "",
         "cliente" => $clienteData,
         "modoEmissao" => 1,
         "total" => $venda['total'],
