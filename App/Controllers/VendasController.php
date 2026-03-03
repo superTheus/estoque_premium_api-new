@@ -150,6 +150,8 @@ class VendasController extends ControllerBase
                 "total_pago" => $vendaData['total_pago'],
                 "total_desconto" => $vendaData['total_desconto'],
                 "total_troco" => $vendaData['total_troco'],
+                "nota_referenciada" => $vendaData['nota_referenciada'],
+                "cpf_nota" => $vendaData['cpf_nota'],
                 "status" => 'AB',
                 "observacao_nota" => $vendaData['observacao_nota'],
                 "venda_produtos" => $produtosCreate,
