@@ -590,7 +590,7 @@ class FiscalController extends ApiModel
         "produtos" => $produtosNota,
         "pagamentos" => $pagamentosNota,
         "finalidade" => $operacao['finalidade'] ?? 1,
-        "nota_referencia" => $venda['nota_referenciada'] ?? null,
+        "nota_referencia" => trim($venda['nota_referenciada']) ?? null,
         "fiscal" => [
           "aliquota_ibs_estadual" => 0.10,
           "aliquota_ibs_municipal" => 0.0,
