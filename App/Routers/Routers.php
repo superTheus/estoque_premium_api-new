@@ -18,6 +18,7 @@ use App\Controllers\RegrasFiscalController;
 use App\Controllers\ReportsController;
 use App\Controllers\SubcategoriasController;
 use App\Controllers\TiposPagamentoController;
+use App\Controllers\TransportadoraController;
 use App\Controllers\UsuariosController;
 use App\Controllers\VendaPagamentosController;
 use App\Controllers\VendasController;
@@ -264,6 +265,32 @@ class Routers
                     $clientesController = new ClientesController($id);
                     $data = json_decode(file_get_contents('php://input'), true);
                     $clientesController->update($data);
+                });
+            });
+
+            $router->mount('/transportadoras', function () use ($router) {
+                $router->post('/listar', function () {
+                    $transportadorasController = new TransportadoraController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $transportadorasController->find($data);
+                });
+
+                $router->post('/criar', function () {
+                    $transportadorasController = new TransportadoraController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $transportadorasController->create($data);
+                });
+
+                $router->post('/buscar', function () {
+                    $transportadorasController = new TransportadoraController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $transportadorasController->search($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $transportadorasController = new TransportadoraController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $transportadorasController->update($data);
                 });
             });
 

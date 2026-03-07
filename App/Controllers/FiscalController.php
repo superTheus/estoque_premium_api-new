@@ -573,11 +573,27 @@ class FiscalController extends ApiModel
         }
       }
 
+      $transportadoraData = null;
+
+      if($venda["id_transportadora"]) {
+        $transportadoraController = new TransportadoraController($venda["id_transportadora"]);
+        $transportadoraData = $transportadoraController->findOnly([
+          "includes" => [
+            "cidades" => true
+          ]
+        ])[0] ?? null;
+      }
+
       $dadosEmissao = [
         "cnpj" => $empresa['cnpj'],
         "cnpj_consulta" => $empresa['cnpj_consulta'],
         "cfop" => $cfopNota,
         "operacao" => $operacao['descricao'],
+        "modalidade_frete" => $venda['transporte'] ?? "9",
+        "quantidade_volumes" => $venda['qtd_volumes'] ?? 0,
+        "especie_volume" => $venda['especie_volume'] ?? "",
+        "peso_liquido" => $venda['peso_liquido'] ?? 0,
+        "peso_bruto" => $venda['peso_bruto'] ?? 0,
         "consumidor_final" => $consumidorFinal,
         "ind_final" => $consumidorFinalFlag,
         "observacao" => $venda['observacao_nota'] || $operacao['observacao'] ? ($venda['observacao_nota'] ?? "") . " " . ($operacao['observacao'] ?? "") : "",
@@ -600,6 +616,23 @@ class FiscalController extends ApiModel
 
       if ($venda["observacao_nota"]) {
         $dadosEmissao["observacao"] = $venda["observacao_nota"];
+      }
+
+      if($transportadoraData) {
+        $dadosEmissao["transportadora"] = [
+          "cnpj" => $transportadoraData['cnpj'],
+          "razao_social" => $transportadoraData['razao_social'],
+          "inscricao_estadual" => $transportadoraData['inscricao_estadual'],
+          "endereco" => [
+            "bairro" => $transportadoraData['bairro'] ?? "",
+            "codigo_municipio" => $transportadoraData['cidades']['codigo_ibge'] ?? "",
+            "logradouro" => $transportadoraData["logradouro"] ?? "",
+            "municipio" => $transportadoraData["cidade"] ?? "",
+            "numero" => $transportadoraData["numero"] ?? "S/N",
+            "uf" => $transportadoraData["uf"] ?? "",
+            "cep" => $transportadoraData["cep"] ?? ""
+          ]
+        ];
       }
 
       if ($tipo === 'NFCE') {
