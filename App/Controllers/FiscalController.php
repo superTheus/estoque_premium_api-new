@@ -493,7 +493,6 @@ class FiscalController extends ApiModel
         $cfopProduto = $this->determinarCFOPProduto($empresa, $cliente, $produto);
 
         $produtosNota[] = [
-          "acrescimo" => 0,
           "cfop" => $cfopProduto,
           "codigo" => $produto["id_produto"],
           "desconto" => $produto["desconto_real"],
@@ -518,6 +517,7 @@ class FiscalController extends ApiModel
           "aliquota_pis" => $produto["aliquota_pis"] ?? 0,
           "cst_cofins" => $produto["cst_cofins"] ?? "06",
           "aliquota_cofins" => $produto["aliquota_cofins"] ?? 0,
+          "outras_despesas" => $produto["outras_despesas"] ?? 0
         ];
       }
 
