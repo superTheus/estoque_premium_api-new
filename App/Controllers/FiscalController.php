@@ -493,7 +493,6 @@ class FiscalController extends ApiModel
         $cfopProduto = $this->determinarCFOPProduto($empresa, $cliente, $produto);
 
         $produtosNota[] = [
-          "acrescimo" => 0,
           "cfop" => $cfopProduto,
           "codigo" => $produto["id_produto"],
           "desconto" => $produto["desconto_real"],
@@ -518,6 +517,7 @@ class FiscalController extends ApiModel
           "aliquota_pis" => $produto["aliquota_pis"] ?? 0,
           "cst_cofins" => $produto["cst_cofins"] ?? "06",
           "aliquota_cofins" => $produto["aliquota_cofins"] ?? 0,
+          "outras_despesas" => $produto["outras_despesas"] ?? 0
         ];
       }
 
@@ -573,11 +573,27 @@ class FiscalController extends ApiModel
         }
       }
 
+      $transportadoraData = null;
+
+      if ($venda["id_transportadora"]) {
+        $transportadoraController = new TransportadoraController($venda["id_transportadora"]);
+        $transportadoraData = $transportadoraController->findOnly([
+          "includes" => [
+            "cidades" => true
+          ]
+        ])[0] ?? null;
+      }
+
       $dadosEmissao = [
         "cnpj" => $empresa['cnpj'],
         "cnpj_consulta" => $empresa['cnpj_consulta'],
         "cfop" => $cfopNota,
         "operacao" => $operacao['descricao'],
+        "modalidade_frete" => $venda['transporte'] ?? "9",
+        "quantidade_volumes" => $venda['qtd_volumes'] ?? 0,
+        "especie_volume" => $venda['especie_volume'] ?? "",
+        "peso_liquido" => $venda['peso_liquido'] ?? 0,
+        "peso_bruto" => $venda['peso_bruto'] ?? 0,
         "consumidor_final" => $consumidorFinal,
         "ind_final" => $consumidorFinalFlag,
         "observacao" => $venda['observacao_nota'] || $operacao['observacao_padrao'] ? ($venda['observacao_nota'] ?? "") . " " . ($operacao['observacao_padrao'] ?? "") : "",
@@ -600,6 +616,23 @@ class FiscalController extends ApiModel
 
       if ($venda["observacao_nota"]) {
         $dadosEmissao["observacao"] = $venda["observacao_nota"];
+      }
+
+      if ($transportadoraData) {
+        $dadosEmissao["transportadora"] = [
+          "cnpj" => $transportadoraData['cnpj'],
+          "razao_social" => $transportadoraData['razao_social'],
+          "inscricao_estadual" => $transportadoraData['inscricao_estadual'],
+          "endereco" => [
+            "bairro" => $transportadoraData['bairro'] ?? "",
+            "codigo_municipio" => $transportadoraData['cidades']['codigo_ibge'] ?? "",
+            "logradouro" => $transportadoraData["logradouro"] ?? "",
+            "municipio" => $transportadoraData["cidade"] ?? "",
+            "numero" => $transportadoraData["numero"] ?? "S/N",
+            "uf" => $transportadoraData["uf"] ?? "",
+            "cep" => $transportadoraData["cep"] ?? ""
+          ]
+        ];
       }
 
       if ($previewMode) {
