@@ -434,9 +434,19 @@ class Routers
                     $fiscalController->emitirNFCE($venda);
                 });
 
+                $router->get('/nfcepreview/{venda}', function ($venda) {
+                    $fiscalController = new FiscalController();
+                    $fiscalController->emitirNFCE($venda, true);
+                });
+
                 $router->get('/nfe/{venda}', function ($venda) {
                     $fiscalController = new FiscalController();
                     $fiscalController->emitirNFE($venda);
+                });
+
+                $router->get('/nfepreview/{venda}', function ($venda) {
+                    $fiscalController = new FiscalController();
+                    $fiscalController->emitirNFE($venda, true);
                 });
 
                 $router->post('/cce/{venda}', function ($venda) {

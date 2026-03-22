@@ -170,6 +170,16 @@ class ApiModel
     return $this->request('fiscal/nfce', 'POST', $data);
   }
 
+  public function nfepreview($data)
+  {
+    return $this->request('fiscal/nfe/preview', 'POST', $data);
+  }
+
+  public function nfcepreview($data)
+  {
+    return $this->request('fiscal/nfce/preview', 'POST', $data);
+  }
+
   public function nfe($data)
   {
     return $this->request('fiscal/nfe', 'POST', $data);

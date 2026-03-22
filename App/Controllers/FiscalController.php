@@ -379,17 +379,17 @@ class FiscalController extends ApiModel
     return "S";
   }
 
-  public function emitirNFCE($idVenda)
+  public function emitirNFCE($idVenda, $previewMode = false)
   {
-    $this->emitir($idVenda, 'NFCE');
+    $this->emitir($idVenda, 'NFCE', $previewMode);
   }
 
-  public function emitirNFE($idVenda)
+  public function emitirNFE($idVenda, $previewMode = false)
   {
-    $this->emitir($idVenda, 'NFE');
+    $this->emitir($idVenda, 'NFE', $previewMode);
   }
 
-  public function emitir($idVenda, $tipo = 'NFCE')
+  public function emitir($idVenda, $tipo = 'NFCE', $previewMode = false)
   {
     try {
       if (!$idVenda) {
@@ -448,7 +448,7 @@ class FiscalController extends ApiModel
       $cidade = null;
       $endereco = null;
 
-      if($operacao['finalidade'] === 4 && !$venda['nota_referenciada']) {
+      if ($operacao['finalidade'] === 4 && !$venda['nota_referenciada']) {
         http_response_code(400);
         throw new \Exception(json_encode([
           "error" => "Operação de devolução (finalidade 4) requer nota referenciada. Por favor, informe a chave da nota original na venda."
@@ -567,7 +567,7 @@ class FiscalController extends ApiModel
           "inscricao_estadual" => "ISENTO"
         ];
 
-        if($venda["cpf_nota"]) {
+        if ($venda["cpf_nota"]) {
           $clienteData["documento"] = preg_replace('/\D/', '', $venda["cpf_nota"]);
           $clienteData["tipo_documento"] = strlen($clienteData["documento"]) === 11 ? "CPF" : "CNPJ";
         }
@@ -580,7 +580,7 @@ class FiscalController extends ApiModel
         "operacao" => $operacao['descricao'],
         "consumidor_final" => $consumidorFinal,
         "ind_final" => $consumidorFinalFlag,
-        "observacao" => $venda['observacao_nota'] || $operacao['observacao'] ? ($venda['observacao_nota'] ?? "") . " " . ($operacao['observacao'] ?? "") : "",
+        "observacao" => $venda['observacao_nota'] || $operacao['observacao_padrao'] ? ($venda['observacao_nota'] ?? "") . " " . ($operacao['observacao_padrao'] ?? "") : "",
         "cliente" => $clienteData,
         "modoEmissao" => 1,
         "total" => $venda['total'] ?? 0,
@@ -590,7 +590,7 @@ class FiscalController extends ApiModel
         "produtos" => $produtosNota,
         "pagamentos" => $pagamentosNota,
         "finalidade" => $operacao['finalidade'] ?? 1,
-        "nota_referencia" => trim($venda['nota_referenciada']) ?? null,
+        "nota_referencia" => $venda['nota_referenciada'] ? trim($venda['nota_referenciada']) : null,
         "fiscal" => [
           "aliquota_ibs_estadual" => 0.10,
           "aliquota_ibs_municipal" => 0.0,
@@ -602,29 +602,53 @@ class FiscalController extends ApiModel
         $dadosEmissao["observacao"] = $venda["observacao_nota"];
       }
 
-      if ($tipo === 'NFCE') {
-        $notaEmitida = $this->nfce($dadosEmissao);
-      } else {
-        $notaEmitida = $this->nfe($dadosEmissao);
-      }
+      if ($previewMode) {
+        if ($tipo === 'NFCE') {
+          $notaEmitida = $this->nfcepreview($dadosEmissao);
+        } else {
+          $notaEmitida = $this->nfepreview($dadosEmissao);
+        }
 
-      if ($notaEmitida) {
-        $venda = $vendasController->updateOnly([
-          "nota_emitida" => "S",
-          "protocolo" => $notaEmitida['protocolo'],
-          "chave" => $notaEmitida['chave'],
-          "url" => $notaEmitida['link'],
-          "pdf" => $notaEmitida['pdf'],
-          "xml" => $notaEmitida['xml'],
-          'tipo' => $tipo,
-          'dthr_emissao' => date('Y-m-d H:i:s'),
-          "status_nota" => "S",
-          "messagem_error" => ""
-        ]);
+        if ($notaEmitida) {
+          $venda = $vendasController->updateOnly([
+            "nota_preview_emitida" => "S",
+            "url_preview" => $notaEmitida['link'],
+            "pdf_preview" => $notaEmitida['pdf'],
+            "xml" => $notaEmitida['xml'],
+            "status_nota_preview" => "S",
+            'tipo' => $tipo,
+            "messagem_error" => ""
+          ]);
+        } else {
+          throw new \Exception(json_encode([
+            "error" => "Erro desconhecido ao emitir a nota fiscal."
+          ]));
+        }
       } else {
-        throw new \Exception(json_encode([
-          "error" => "Erro desconhecido ao emitir a nota fiscal."
-        ]));
+        if ($tipo === 'NFCE') {
+          $notaEmitida = $this->nfce($dadosEmissao);
+        } else {
+          $notaEmitida = $this->nfe($dadosEmissao);
+        }
+
+        if ($notaEmitida) {
+          $venda = $vendasController->updateOnly([
+            "nota_emitida" => "S",
+            "protocolo" => $notaEmitida['protocolo'],
+            "chave" => $notaEmitida['chave'],
+            "url" => $notaEmitida['link'],
+            "pdf" => $notaEmitida['pdf'],
+            "xml" => $notaEmitida['xml'],
+            'tipo' => $tipo,
+            'dthr_emissao' => date('Y-m-d H:i:s'),
+            "status_nota" => "S",
+            "messagem_error" => ""
+          ]);
+        } else {
+          throw new \Exception(json_encode([
+            "error" => "Erro desconhecido ao emitir a nota fiscal."
+          ]));
+        }
       }
 
       http_response_code(200);
@@ -787,7 +811,7 @@ class FiscalController extends ApiModel
         "justificativa" => 'Cancelamento solicitado pelo contribuinte.'
       ];
 
-      if($venda['tipo'] === 'NFE') {
+      if ($venda['tipo'] === 'NFE') {
         $cancelamento = $this->cancelarNfe($dadosCancelamento);
       } else {
         $cancelamento = $this->cancelarNfce($dadosCancelamento);
