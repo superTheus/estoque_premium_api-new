@@ -95,7 +95,7 @@ abstract class ControllerBase
                                     "order" => $includeValue['order'] ?? [],
                                     "date_ranger" => $includeValue['date_ranger'] ?? [],
                                     "includes" => isset($includeValue['includes']) ? $includeValue['includes'] : []
-                                ])[0];
+                                ])[0] ?? null;
                             } else {
                                 $subModel = new $relation['model']();
                                 $subItems = $subModel->find(
