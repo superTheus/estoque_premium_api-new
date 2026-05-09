@@ -6,6 +6,7 @@ use App\Controllers\CategoriasController;
 use App\Controllers\ClientesController;
 use App\Controllers\ContasController;
 use App\Controllers\ContasUsuariosController;
+use App\Controllers\ContasUsuariosFaturasController;
 use App\Controllers\EmpresasController;
 use App\Controllers\FiscalController;
 use App\Controllers\FormasPagamentoController;
@@ -471,6 +472,11 @@ class Routers
                     $fiscalController->emitirNFE($venda);
                 });
 
+                $router->get('/nfse/{venda}', function ($venda) {
+                    $fiscalController = new FiscalController();
+                    $fiscalController->emitirNFSE($venda);
+                });
+
                 $router->get('/nfepreview/{venda}', function ($venda) {
                     $fiscalController = new FiscalController();
                     $fiscalController->emitirNFE($venda, true);
@@ -695,6 +701,11 @@ class Routers
                     $contaUsuarioController->searchDataTable($data);
                 });
             });
+
+            $router->get('/gerar-financeiro/{id}', function ($id) {
+                $contaUsuarioController = new ContasUsuariosFaturasController($id);
+                $contaUsuarioController->gerarFinanceiro($id);
+            });
         });
 
         $router->post('/login', function () {
@@ -726,21 +737,21 @@ class Routers
             ini_set('display_errors', 1);
 
             $token = 'APP_USR-4191466147121771-102418-b8ba24693ad09ddac43dc56292667f9c-281869678';
-            $id    = '131911635158';
+            $id = '131911635158';
 
             $ch = curl_init("https://api.mercadopago.com/v1/payments/$id");
             curl_setopt_array($ch, [
-                CURLOPT_HTTPHEADER        => ["Authorization: Bearer $token", "Content-Type: application/json"],
-                CURLOPT_RETURNTRANSFER    => true,
-                CURLOPT_CONNECTTIMEOUT    => 5,   // evita “parecer travado”
-                CURLOPT_TIMEOUT           => 15,
-                CURLOPT_IPRESOLVE         => CURL_IPRESOLVE_V4, // evita problemas com IPv6
-                CURLOPT_SSL_VERIFYPEER    => true,              // mantenha true em produção
+                CURLOPT_HTTPHEADER => ["Authorization: Bearer $token", "Content-Type: application/json"],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,   // evita “parecer travado”
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4, // evita problemas com IPv6
+                CURLOPT_SSL_VERIFYPEER => true,              // mantenha true em produção
             ]);
-            $res   = curl_exec($ch);
+            $res = curl_exec($ch);
             $errno = curl_errno($ch);
             $error = curl_error($ch);
-            $info  = curl_getinfo($ch);
+            $info = curl_getinfo($ch);
             curl_close($ch);
 
             echo json_encode(['errno' => $errno, 'error' => $error, 'http_code' => $info['http_code'] ?? null, 'primary_ip' => $info['primary_ip'] ?? null, 'ssl_info' => $info]);

@@ -389,6 +389,11 @@ class FiscalController extends ApiModel
     $this->emitir($idVenda, 'NFE', $previewMode);
   }
 
+  public function emitirNFSE($idVenda, $previewMode = false)
+  {
+    $this->emitir($idVenda, 'NFSE', $previewMode);
+  }
+
   public function emitir($idVenda, $tipo = 'NFCE', $previewMode = false)
   {
     try {
@@ -660,6 +665,8 @@ class FiscalController extends ApiModel
       } else {
         if ($tipo === 'NFCE') {
           $notaEmitida = $this->nfce($dadosEmissao);
+        } else if ($tipo === 'NFSE') {
+          $notaEmitida = $this->nfse($dadosEmissao);
         } else {
           $notaEmitida = $this->nfe($dadosEmissao);
         }

@@ -128,8 +128,11 @@ class MercadoPagoController extends ControllerBase
                 'payment_data' => json_encode($payment)
             ];
 
-            $resultado = $this->model->insert($pagamentoData);
+            if($data['id_fatura']) {
+                $pagamentoData['id_fatura'] = $data['id_fatura'];
+            }
 
+            $resultado = $this->model->insert($pagamentoData);
             return $resultado;
         } catch (\Exception $e) {
             throw new \Exception($e->getMessage());
@@ -580,8 +583,11 @@ class MercadoPagoController extends ControllerBase
                 'payment_data' => json_encode($payment)
             ];
 
-            $resultado = $this->model->insert($pagamentoData);
+            if($data['id_fatura']) {
+                $pagamentoData['id_fatura'] = $data['id_fatura'];
+            }
 
+            $resultado = $this->model->insert($pagamentoData);
             return $resultado;
         } catch (MPApiException $e) {
             $apiResponse = $e->getApiResponse();

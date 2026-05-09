@@ -149,7 +149,6 @@ class EmpresasController extends ControllerBase
             "inscricao_municipal" => $data['inscricao_municipal'] ?? $company['inscricao_municipal'],
             "certificado" => $data['certificado'] ?? $company['certificado'],
             "senha" => $data['senha'] ?? $company['senha'],
-            "senha" => $data['senha'] ?? $company['senha'],
             "csc" => $data['csc'] ?? $company['csc'],
             "csc_id" => $data['csc_id'] ?? $company['csc_id'],
             "tpamb" => isset($data['homologacao']) && $data['homologacao'] === 'S' ? 2 : 1,
@@ -185,7 +184,6 @@ class EmpresasController extends ControllerBase
             "inscricao_municipal" => $data['inscricao_municipal'] ?? null,
             "certificado" => $data['certificado'] ?? null,
             "senha" => $data['senha'] ?? null,
-            "senha" => $data['senha'] ?? null,
             "csc" => $data['csc'] ?? null,
             "csc_id" => $data['csc_id'] ?? null,
             "tpamb" => isset($data['homologacao']) && $data['homologacao'] === 'S' ? 2 : 1,
@@ -193,6 +191,8 @@ class EmpresasController extends ControllerBase
             "numero_nfce" => $data['numero_nfce'] ?? null,
             "serie_nfe" => $data['serie_nfe'] ?? null,
             "numero_nfe" => $data['numero_nfe'] ?? null,
+            "serie_nfse" => $data['serie_nfse'] ?? null,
+            "numero_nfse" => $data['numero_nfse'] ?? null,
             "situacao_tributaria" => $data['situacao_tributaria'] ?? null,
             "csc_homologacao" => $data['csc_homologacao'] ?? null,
             "csc_id_homologacao" => $data['csc_id_homologacao'] ?? null,
@@ -200,6 +200,8 @@ class EmpresasController extends ControllerBase
             "numero_nfce_homologacao" => $data['numero_nfce_homologacao'] ?? null,
             "serie_nfe_homologacao" => $data['serie_nfe_homologacao'] ?? null,
             "numero_nfe_homologacao" => $data['numero_nfe_homologacao'] ?? null,
+            "serie_nfse_homologacao" => $data['serie_nfse_homologacao'] ?? null,
+            "numero_nfse_homologacao" => $data['numero_nfse_homologacao'] ?? null,
             "crt" => $data['crt'],
           ]);
         }
@@ -269,6 +271,14 @@ class EmpresasController extends ControllerBase
           $data['numero_nfe_homologacao'] = $currentData['numero_nfe_homologacao'];
         }
 
+        if (!isset($data['serie_nfse_homologacao'])) {
+          $data['serie_nfse_homologacao'] = $currentData['serie_nfse_homologacao'];
+        }
+
+        if (!isset($data['numero_nfse_homologacao'])) {
+          $data['numero_nfse_homologacao'] = $currentData['numero_nfse_homologacao'];
+        }
+
         if (!isset($data['cep'])) {
           $data['cep'] = $currentData['cep'];
         }
@@ -304,7 +314,9 @@ class EmpresasController extends ControllerBase
             !isset($data['serie_nfce_homologacao']) &&
             !isset($data['numero_nfce_homologacao']) &&
             !isset($data['serie_nfe_homologacao']) &&
-            !isset($data['numero_nfe_homologacao'])
+            !isset($data['numero_nfe_homologacao']) &&
+            !isset($data['serie_nfse_homologacao']) &&
+            !isset($data['numero_nfse_homologacao'])
           ) {
             throw new \Exception("Série e número de homologação são obrigatórios");
           }
@@ -314,10 +326,14 @@ class EmpresasController extends ControllerBase
             !isset($data['numero_nfe']) &&
             !isset($data['serie_nfce']) &&
             !isset($data['numero_nfce']) &&
+            !isset($data['serie_nfse']) &&
+            !isset($data['numero_nfse']) &&
             !$currentData['serie_nfe'] &&
             !$currentData['numero_nfe'] &&
             !$currentData['serie_nfce'] &&
-            !$currentData['numero_nfce']
+            !$currentData['numero_nfce'] &&
+            !$currentData['serie_nfse'] &&
+            !$currentData['numero_nfse']
           ) {
             throw new \Exception("Série e número da nota são obrigatórios");
           }

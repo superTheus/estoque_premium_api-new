@@ -97,16 +97,9 @@ class ContasUsuariosController extends ControllerBase
   {
     try {
       $this->validateRequiredFields($this->model, $data);
-
       $result = $this->model->insert($data);
-      $formas = [];
-
-      $contasGeradas = [];
-      $geraFinanceiro = false;
 
       if ($result) {
-        $clienteController = new ClientesController();
-        $contasController = new ContasController();
         $contasUsuariosController = new ContasUsuariosController();
 
         $contaNova = $contasUsuariosController->findOnly([
@@ -152,13 +145,12 @@ class ContasUsuariosController extends ControllerBase
           "descricao" => "Pix",
         ]);
 
-        $boleto = $formaPagamentoController->createOnly([
+        $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 11,
           "descricao" => "Boleto",
         ]);
 
-        $formas[] = $boleto;
         $formas[] = $formaPagamentoController->createOnly([
           "id_conta" => $result['id'],
           "id_tipo" => 5,
@@ -166,7 +158,7 @@ class ContasUsuariosController extends ControllerBase
         ]);
 
         $operacoesController = new OperacoesController();
-        $operacoesController->createOnly([
+        $operacoes[] = $operacoesController->createOnly([
           "id_conta" => $result['id'],
           "cfop_internacional" => "6102",
           "cfop_estadual" => "5102",
@@ -176,7 +168,7 @@ class ContasUsuariosController extends ControllerBase
           "descricao" => "Venda de Mercadoria",
         ]);
 
-        $operacoesController->createOnly([
+        $operacoes[] = $operacoesController->createOnly([
           "id_conta" => $result['id'],
           "cfop_internacional" => "2102",
           "cfop_estadual" => "1102",
@@ -186,135 +178,146 @@ class ContasUsuariosController extends ControllerBase
           "descricao" => "Entrada de Mercadoria",
         ]);
 
-        if (
-          isset($data['cnpj']) && $data['cnpj'] &&
-          isset($data['uf']) && $data['uf'] &&
-          isset($data['cidade']) && $data['cidade'] &&
-          isset($data['logradouro']) && $data['logradouro'] &&
-          isset($data['numero']) && $data['numero'] &&
-          isset($data['cep']) && $data['cep'] &&
-          isset($data['bairro']) && $data['bairro']
-        ) {
-          $geraFinanceiro = true;
-        }
+        $operacoes[] = $operacoesController->createOnly([
+          "id_conta" => $result['id'],
+          "cfop_internacional" => "6201",
+          "cfop_estadual" => "5202",
+          "natureza_operacao" => "E",
+          "tipo" => "D",
+          "mov_estoque" => "E",
+          "descricao" => "Devolução de Mercadoria",
+        ]);
 
-        $contasAdms = $contasUsuariosController->findOnly([
-          'filter' => [
-            'tipo' => 'A',
-            'deletado' => 'N',
-            'status' => 'A',
-          ],
-          'includes' => [
-            'empresas' => true,
-            'usuarios' => true
+        $contasUsuariosFaturasController = new ContasUsuariosFaturasController();
+        $result['fatura'] = $contasUsuariosFaturasController->createOnly(
+          [
+            "id_conta_usuario" => $result['id'],
+            "descricao" => "Mensalidade do Sistema para " . ($empresa['razao_social'] ?? $usuario['nome'] ?? 'Cliente'),
+            "valor" => $result['valor_mensal'] ?? 90.00,
+            "vencimento" => $result['vencimento'] ?? date('Y-m-d', strtotime('+7 days'))
           ]
-        ]);
-
-        $tokenUnico = uniqid(date('YmdHis'));
-
-        if ($contasAdms) {
-          foreach ($contasAdms as $contaAdm) {
-            $forma = $formaPagamentoController->findOnly([
-              "filter" => [
-                "id_conta" => $contaAdm['id'],
-                "id_tipo" => 11
-              ],
-            ]);
-
-            if ($forma && isset($forma[0])) {
-              $forma = $forma[0];
-            }
-
-            $cliente = $clienteController->createOnly([
-              'tipo_cliente' => 'PJ',
-              'nome' => $data['responsavel'] . ' ' . $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
-              'apelido' => $data['responsavel'] . ' ' . $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
-              'documento' => $data['empresas'][0]['cnpj'] ?? null,
-              'razao_social' => $data['empresas'][0]['razao_social'] ?? null,
-              'email' => $data['empresas'][0]['email'] ?? null,
-              'cep' => $data['empresas'][0]['cep'] ?? null,
-              'logradouro' => $data['empresas'][0]['logradouro'] ?? null,
-              'numero' => $data['empresas'][0]['numero'] ?? null,
-              'bairro' => $data['empresas'][0]['bairro'] ?? null,
-              'cidade' => $data['empresas'][0]['cidade'] ?? null,
-              'estado' => $data['empresas'][0]['uf'] ?? null,
-              'id_conta' => $contaAdm['id'],
-            ]);
-
-            $contasGeradas[] = $contasController->createOnly([
-              'id_conta' => $contaAdm['id'],
-              'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
-              'id_cliente' => $cliente['id'],
-              'id_forma' => $forma['id'] ?? null,
-              'descricao'  => 'Assinatura mensal - ' . $data['responsavel'],
-              'valor' => $data['valor_mensal'] ?? 0.00,
-              'origem' => 'M',
-              'natureza' => 'R',
-              'condicao' => 'A',
-              'vencimento' => $data['vencimento'],
-              'observacoes' => 'Geração automática de conta mensalidade',
-              'situacao' => 'PE',
-              'token_unico' => $tokenUnico,
-            ]);
-          }
-        }
-
-        $contasGeradas[] = $contasController->createOnly([
-          'id_conta' => $result['id'],
-          'id_empresa' => $empresa['id'] ?? null,
-          'id_cliente' => null,
-          'id_forma' => $boleto['id'] ?? null,
-          'descricao'  => 'Mensalidade do Sistema',
-          'valor' => $data['valor_mensal'] ?? 0.00,
-          'origem' => 'M',
-          'natureza' => 'D',
-          'condicao' => 'A',
-          'vencimento' => $data['vencimento'],
-          'observacoes' => 'Geração automática de conta de mensalidade do sistema',
-          'situacao' => 'PE',
-          'token_unico' => $tokenUnico,
-        ]);
-
-        if ($geraFinanceiro) {
-          $dias = UtilsModel::diasFaltantes($data['vencimento']);
-
-          if ($dias < 28) {
-            $mercadoPagoController = new MercadoPagoController();
-            $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
-              'valor' => floatval($data['valor_mensal'] ?? 0.00),
-              'descricao' => 'Mensalidade do Sistema',
-              'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
-              'responsavel' => $usuario['nome'] ?? 'Cliente',
-              'cnpj' => $empresa['cnpj'] ?? null,
-              'logradouro' => $empresa['logradouro'] ?? null,
-              'numero' => $empresa['numero'] ?? null,
-              'bairro' => $empresa['bairro'] ?? null,
-              'cidade' => $empresa['cidade'] ?? null,
-              'uf' => $empresa['uf'] ?? null,
-              'cep' => $empresa['cep'] ?? null,
-              'dataVencimento' => $data['vencimento'],
-            ]);
-
-            foreach ($contasGeradas as $key => $contaGerada) {
-              $novasContasController = new ContasController($contaGerada['id']);
-              $contasGeradas[$key] = $novasContasController->updateOnly([
-                'descricao' => $contaGerada['descricao'],
-                'conta_pagamento' => [
-                  'create' => [
-                    [
-                      'id_pagamento' => $pagamentoBoleto['id'],
-                    ]
-                  ]
-                ]
-              ]);
-            }
-          }
-        }
+        );
 
         $result['formas_pagamento'] = $formas;
-        if ($geraFinanceiro) {
-          $result['mensalidades_geradas'] = $contasGeradas;
-        }
+        $result['operacoes'] = $operacoes;
+
+        // $contasAdms = $contasUsuariosController->findOnly([
+        //   'filter' => [
+        //     'tipo' => 'A',
+        //     'deletado' => 'N',
+        //     'status' => 'A',
+        //   ],
+        //   'includes' => [
+        //     'empresas' => true,
+        //     'usuarios' => true
+        //   ]
+        // ]);
+
+        // $tokenUnico = uniqid(date('YmdHis'));
+
+        // if ($contasAdms) {
+        //   foreach ($contasAdms as $contaAdm) {
+        //     $forma = $formaPagamentoController->findOnly([
+        //       "filter" => [
+        //         "id_conta" => $contaAdm['id'],
+        //         "id_tipo" => 11
+        //       ],
+        //     ]);
+
+        //     if ($forma && isset($forma[0])) {
+        //       $forma = $forma[0];
+        //     }
+
+        //     $cliente = $clienteController->createOnly([
+        //       'tipo_cliente' => 'PJ',
+        //       'nome' => $data['responsavel'] . ' ' . $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+        //       'apelido' => $data['responsavel'] . ' ' . $data['empresas'][0]['razao_social'] ?? 'Cliente Principal',
+        //       'documento' => $data['empresas'][0]['cnpj'] ?? null,
+        //       'razao_social' => $data['empresas'][0]['razao_social'] ?? null,
+        //       'email' => $data['empresas'][0]['email'] ?? null,
+        //       'cep' => $data['empresas'][0]['cep'] ?? null,
+        //       'logradouro' => $data['empresas'][0]['logradouro'] ?? null,
+        //       'numero' => $data['empresas'][0]['numero'] ?? null,
+        //       'bairro' => $data['empresas'][0]['bairro'] ?? null,
+        //       'cidade' => $data['empresas'][0]['cidade'] ?? null,
+        //       'estado' => $data['empresas'][0]['uf'] ?? null,
+        //       'id_conta' => $contaAdm['id'],
+        //     ]);
+
+        //     $contasGeradas[] = $contasController->createOnly([
+        //       'id_conta' => $contaAdm['id'],
+        //       'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
+        //       'id_cliente' => $cliente['id'],
+        //       'id_forma' => $forma['id'] ?? null,
+        //       'descricao'  => 'Assinatura mensal - ' . $data['responsavel'],
+        //       'valor' => $data['valor_mensal'] ?? 0.00,
+        //       'origem' => 'M',
+        //       'natureza' => 'R',
+        //       'condicao' => 'A',
+        //       'vencimento' => $data['vencimento'],
+        //       'observacoes' => 'Geração automática de conta mensalidade',
+        //       'situacao' => 'PE',
+        //       'token_unico' => $tokenUnico,
+        //     ]);
+        //   }
+        // }
+
+        // $contasGeradas[] = $contasController->createOnly([
+        //   'id_conta' => $result['id'],
+        //   'id_empresa' => $empresa['id'] ?? null,
+        //   'id_cliente' => null,
+        //   'id_forma' => $boleto['id'] ?? null,
+        //   'descricao'  => 'Mensalidade do Sistema',
+        //   'valor' => $data['valor_mensal'] ?? 0.00,
+        //   'origem' => 'M',
+        //   'natureza' => 'D',
+        //   'condicao' => 'A',
+        //   'vencimento' => $data['vencimento'],
+        //   'observacoes' => 'Geração automática de conta de mensalidade do sistema',
+        //   'situacao' => 'PE',
+        //   'token_unico' => $tokenUnico,
+        // ]);
+
+        // if ($geraFinanceiro) {
+        //   $dias = UtilsModel::diasFaltantes($data['vencimento']);
+
+        //   if ($dias < 28) {
+        //     $mercadoPagoController = new MercadoPagoController();
+        //     $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas([
+        //       'valor' => floatval($data['valor_mensal'] ?? 0.00),
+        //       'descricao' => 'Mensalidade do Sistema',
+        //       'email' => $usuario['email'] ?? ($empresa['email'] ?? null),
+        //       'responsavel' => $usuario['nome'] ?? 'Cliente',
+        //       'cnpj' => $empresa['cnpj'] ?? null,
+        //       'logradouro' => $empresa['logradouro'] ?? null,
+        //       'numero' => $empresa['numero'] ?? null,
+        //       'bairro' => $empresa['bairro'] ?? null,
+        //       'cidade' => $empresa['cidade'] ?? null,
+        //       'uf' => $empresa['uf'] ?? null,
+        //       'cep' => $empresa['cep'] ?? null,
+        //       'dataVencimento' => $data['vencimento'],
+        //     ]);
+
+        //     foreach ($contasGeradas as $key => $contaGerada) {
+        //       $novasContasController = new ContasController($contaGerada['id']);
+        //       $contasGeradas[$key] = $novasContasController->updateOnly([
+        //         'descricao' => $contaGerada['descricao'],
+        //         'conta_pagamento' => [
+        //           'create' => [
+        //             [
+        //               'id_pagamento' => $pagamentoBoleto['id'],
+        //             ]
+        //           ]
+        //         ]
+        //       ]);
+        //     }
+        //   }
+        // }
+
+        // $result['formas_pagamento'] = $formas;
+        // if ($geraFinanceiro) {
+        //   $result['mensalidades_geradas'] = $contasGeradas;
+        // }
       }
 
       http_response_code(200);
@@ -407,10 +410,10 @@ class ContasUsuariosController extends ControllerBase
     }
   }
 
-  public function delete(int $id)
+  public function delete()
   {
     try {
-      $result = $this->model->delete($id);
+      $result = $this->model->delete();
 
       http_response_code(200);
       echo json_encode($result);

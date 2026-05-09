@@ -185,6 +185,11 @@ class ApiModel
     return $this->request('fiscal/nfe', 'POST', $data);
   }
 
+  public function nfse($data)
+  {
+    return $this->request('fiscal/nfse', 'POST', $data);
+  }
+
   public function cce($data)
   {
     return $this->request('fiscal/nfe/carta', 'POST', $data);
