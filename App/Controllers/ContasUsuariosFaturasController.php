@@ -90,7 +90,6 @@ class ContasUsuariosFaturasController extends ControllerBase
     {
         try {
             $currentData = $this->model->current();
-
             if (!$currentData) {
                 throw new \Exception("User not found");
             }
@@ -106,6 +105,11 @@ class ContasUsuariosFaturasController extends ControllerBase
                         $relatedModel->insert($item);
                     }
                 }
+            }
+
+            if($result && $currentData['status'] !== $result['status'] && $result['status'] === 'CA') {
+                $mercadoPagoController = new MercadoPagoController();
+                $mercadoPagoController->cancelarPorFatura($result['id']);
             }
 
             return $result;
@@ -209,11 +213,6 @@ class ContasUsuariosFaturasController extends ControllerBase
                     $pagamentoBoleto = $mercadoPagoController->gerarBoletoApenas($dataPayment);
                     $pagamentoPix = $mercadoPagoController->gerarPixApenas($dataPayment);
 
-                    die(json_encode([
-                        'boleto' => $pagamentoBoleto,
-                        'pix' => $pagamentoPix
-                    ]));
-
                     return [
                         'boleto' => $pagamentoBoleto,
                         'pix' => $pagamentoPix
@@ -221,6 +220,55 @@ class ContasUsuariosFaturasController extends ControllerBase
                 } else {
                     throw new \Exception("Fatura ainda não está próxima do vencimento. Faltam " . UtilsModel::diasFaltantes($contaUsuario['vencimento']) . " dias para o vencimento.");
                 }
+            }
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
+    public function atualizarInfoFaturas($id)
+    {
+        try {
+            $contasUsuariosController = new ContasUsuariosController($id);
+            $contaUsuario = $contasUsuariosController->findOnly([
+                "filter" => [
+                    "id" => $id
+                ],
+                "includes" => [
+                    "empresas" => true,
+                    "usuarios" => true
+                ]
+            ])[0] ?? null;
+
+            if ($contaUsuario) {
+                $empresa = $contaUsuario['empresas'][0] ?? null;
+                $usuario = $contaUsuario['usuarios'][0] ?? null;
+
+                $contasUsuariosFaturas = $this->findOnly([
+                    "filter" => [
+                        "id_conta_usuario" => $id,
+                        "status" => "PE",
+                        "deletado" => "N"
+                    ]
+                ]);
+
+                if ($contasUsuariosFaturas) {
+                    foreach ($contasUsuariosFaturas as $fatura) {
+                        $updateController = new ContasUsuariosFaturasController($fatura['id']);
+                        $updateController->updateOnly([
+                            "status" => "CA",
+                        ]);
+                    }
+                }
+
+                $result = $this->createOnly([
+                    "vencimento" => $contaUsuario['vencimento'],
+                    "valor" => $contaUsuario['valor_mensal'],
+                    "descricao" => "Mensalidade do Sistema para " . ($empresa['razao_social'] ?? $usuario['nome'] ?? 'Cliente'),
+                    "id_conta_usuario" => $id
+                ]);
+
+                die(json_encode($result));
             }
         } catch (\Exception $e) {
             throw new \Exception($e->getMessage());

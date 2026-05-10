@@ -388,7 +388,14 @@ class ContasUsuariosController extends ControllerBase
           }
         }
 
-        return $this->model->update($data);
+        $result = $this->model->update($data);
+
+        if ($currentData['vencimento'] !== $data['vencimento'] || $currentData['valor_mensal'] !== $data['valor_mensal']) {
+          $contasUsuariosFaturasController = new ContasUsuariosFaturasController();
+          $contasUsuariosFaturasController->atualizarInfoFaturas($currentData['id']);
+        }
+
+        return $result;
       } else {
         throw new \Exception("Conta não encontrada para atualização");
       }

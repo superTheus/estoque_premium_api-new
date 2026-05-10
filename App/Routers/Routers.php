@@ -623,37 +623,6 @@ class Routers
                 });
             });
 
-            // $router->mount('/mercadopago', function () use ($router) {
-            //     $router->post('/gerar-pix', function () {
-            //         $mercadoPagoController = new MercadoPagoController();
-            //         $data = json_decode(file_get_contents('php://input'), true);
-            //         $mercadoPagoController->gerarPix($data);
-            //     });
-
-            //     $router->post('/gerar-boleto', function () {
-            //         $mercadoPagoController = new MercadoPagoController();
-            //         $data = json_decode(file_get_contents('php://input'), true);
-            //         $mercadoPagoController->gerarBoleto($data);
-            //     });
-
-            //     $router->post('/consultar-pagamento', function () {
-            //         $mercadoPagoController = new MercadoPagoController();
-            //         $data = json_decode(file_get_contents('php://input'), true);
-            //         $mercadoPagoController->consultarPagamento($data);
-            //     });
-
-            //     $router->get('/cancelar-pagamento/{id}', function ($id) {
-            //         $mercadoPagoController = new MercadoPagoController($id);
-            //         $mercadoPagoController->cancelarPagamento();
-            //     });
-
-            //     $router->post('/listar-pagamentos', function () {
-            //         $mercadoPagoController = new MercadoPagoController();
-            //         $data = json_decode(file_get_contents('php://input'), true);
-            //         $mercadoPagoController->find($data);
-            //     });
-            // });
-
             $router->mount('/pagamentos', function () use ($router) {
                 $router->post('/gerar-pix', function () {
                     $contasController = new ContasController();
@@ -702,9 +671,35 @@ class Routers
                 });
             });
 
+            $router->mount('/contas-usuarios-faturas', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $contasUsuariosFaturasController = new ContasUsuariosFaturasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $contasUsuariosFaturasController->search($data);
+                });
+
+                $router->post('/criar', function () {
+                    $contasUsuariosFaturasController = new ContasUsuariosFaturasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $contasUsuariosFaturasController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $contasUsuariosFaturasController = new ContasUsuariosFaturasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $contasUsuariosFaturasController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $contasUsuariosFaturasController = new ContasUsuariosFaturasController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $contasUsuariosFaturasController->update($data);
+                });
+            });
+
             $router->get('/gerar-financeiro/{id}', function ($id) {
-                $contaUsuarioController = new ContasUsuariosFaturasController($id);
-                $contaUsuarioController->gerarFinanceiro($id);
+                $contasUsuariosFaturasController = new ContasUsuariosFaturasController($id);
+                $contasUsuariosFaturasController->gerarFinanceiro($id);
             });
         });
 

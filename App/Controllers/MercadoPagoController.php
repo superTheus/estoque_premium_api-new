@@ -148,6 +148,15 @@ class MercadoPagoController extends ControllerBase
             $input = file_get_contents('php://input');
             $data = json_decode($input, true);
 
+            $webhookController = new WebhookLogsController();
+            $webhookController->create([
+                "origem" => "Mercado Pago",
+                "body" => $input,
+                "method" => $_SERVER['REQUEST_METHOD'] ?? 'POST',
+                "headers" => json_encode(getallheaders()),
+                "url" => $_SERVER['REQUEST_URI'] ?? null,
+            ]);
+
             error_log("Webhook Mercado Pago: " . $input);
 
             if (!isset($data['type']) || $data['type'] !== 'payment') {
@@ -194,37 +203,20 @@ class MercadoPagoController extends ControllerBase
                 'payment_data' => json_encode($payment)
             ]);
 
-
             if ($payment['status'] === 'approved') {
-                $contasPagamentoController = new ContasPagamentoController();
-                $contasPagamento = $contasPagamentoController->findOnly([
-                    'filter' => [
-                        'id_pagamento' => $pagamento['id']
-                    ]
+                $contaUsuariosFaturas = new ContasUsuariosFaturasController($pagamento['id_fatura']);
+                $contaUsuariosFaturas->updateOnly([
+                    'status' => 'PA'
                 ]);
 
-                foreach ($contasPagamento as $contaPagamento) {
-                    $contaPagamentoControllerInstance = new ContasController($contaPagamento['id_conta']);
-                    $contaPagamentoControllerInstance->updateOnly([
-                        'situacao' => 'PA'
-                    ]);
-
-                    $contaFinanceiroModel = new ContasModel($contaPagamento['id_conta']);
-                    $contaFinanceiro = $contaFinanceiroModel->current();
-
-                    $contaUsuarioModel = new ContasUsuariosModel($contaFinanceiro['id_conta']);
-                    $contaDados = $contaUsuarioModel->current();
-
-                    if ($contaDados['tipo'] === 'C') {
-                        $this->atualizarVencimentoConta($contaFinanceiro['id_conta']);
-                    }
-                }
+                $pagamento['conta_usuario'] = $this->atualizarVencimentoConta($contaUsuariosFaturas->findUnique()['id_conta_usuario']);
             }
 
             http_response_code(200);
             echo json_encode([
                 "success" => true,
-                "message" => "Webhook processado com sucesso"
+                "message" => "Webhook processado com sucesso",
+                "data" => $pagamento
             ]);
         } catch (\Exception $e) {
             error_log("Erro no webhook: " . $e->getMessage());
@@ -239,8 +231,8 @@ class MercadoPagoController extends ControllerBase
     private function atualizarVencimentoConta($idConta)
     {
         try {
-            $contasUsuariosModel = new ContasUsuariosModel($idConta);
-            $conta = $contasUsuariosModel->findOnly([
+            $contasUsuariosController = new ContasUsuariosController($idConta);
+            $conta = $contasUsuariosController->findOnly([
                 'filter' => [
                     'id' => $idConta
                 ],
@@ -269,106 +261,19 @@ class MercadoPagoController extends ControllerBase
 
             $novaDataVencimento = date('Y-m-d', strtotime($dataVencimento . ' +1 month'));
 
-            $contasUsuariosModel->update([
+            $contasUsuariosFaturasController = new ContasUsuariosFaturasController();
+            $contasUsuariosFaturasController->createOnly([
+                'id_conta_usuario' => $idConta,
+                'vencimento' => $novaDataVencimento,
+                'status' => 'PA',
+                'valor' => $conta['valor'] ?? 90.00,
+                'descricao' => 'Mensalidade do Sistema para ' . ($empresa['razao_social'] ?? 'Cliente'),
+            ]);
+
+            return $contasUsuariosController->updateOnly([
                 'vencimento' => $novaDataVencimento,
                 'status' => 'A'
             ]);
-
-            $contaUsuariosController = new ContasUsuariosController();
-            $formasPagamentosController = new FormasPagamentoController();
-            $clientesController = new ClientesController();
-            $contaController = new ContasController();
-
-            $forma = $formasPagamentosController->findOnly([
-                'filter' => [
-                    'id_conta' => $conta['id_conta'],
-                    'id_tipo' => 11
-                ],
-                'limit' => 1
-            ]);
-
-            if ($forma && count($forma) > 0) {
-                $forma = $forma[0];
-            } else {
-                $forma = null;
-            }
-
-            $contasAdms = $contaUsuariosController->findOnly([
-                'filter' => [
-                    'tipo' => 'A',
-                    'deletado' => 'N',
-                    'status' => 'A',
-                ],
-                'includes' => [
-                    'empresas' => true,
-                    'usuarios' => true
-                ]
-            ]);
-
-            $tokenUnico = uniqid(date('YmdHis'));
-            $contasGeradas = [];
-
-            if ($contasAdms) {
-                foreach ($contasAdms as $contaAdm) {
-                    $forma = $formasPagamentosController->findOnly([
-                        "filter" => [
-                            "id_conta" => $contaAdm['id'],
-                            "id_tipo" => 11
-                        ],
-                    ]);
-
-                    if ($forma && isset($forma[0])) {
-                        $forma = $forma[0];
-                    }
-
-                    $cliente = $clientesController->findOnly([
-                        'filter' => [
-                            'documento' => $contaAdm['empresas'][0]['cnpj'] ?? null,
-                            'id_conta' => $contaAdm['id']
-                        ],
-                        'limit' => 1
-                    ]);
-
-                    if ($cliente && count($cliente) > 0) {
-                        $cliente = $cliente[0];
-                    } else {
-                        $cliente = null;
-                    }
-
-                    $contasGeradas[] = $contaController->createOnly([
-                        'id_conta' => $contaAdm['id'],
-                        'id_empresa' => $contaAdm['empresas'][0]['id'] ?? null,
-                        'id_cliente' => $cliente ? $cliente['id'] : null,
-                        'id_forma' => $forma['id'] ?? null,
-                        'descricao'  => 'Assinatura mensal - ' . $conta['responsavel'],
-                        'valor' => $conta['valor_mensal'] ?? 0.00,
-                        'origem' => 'M',
-                        'natureza' => 'R',
-                        'condicao' => 'A',
-                        'vencimento' => $novaDataVencimento,
-                        'observacoes' => 'Geração automática de conta mensalidade',
-                        'situacao' => 'PE',
-                        'token_unico' => $tokenUnico,
-                    ]);
-                }
-            }
-
-            $contaController->createOnly([
-                'id_conta' => $conta['id_conta'],
-                'id_empresa' => $empresa['id'],
-                'id_conta' => $conta['id_conta'],
-                'id_forma' => $forma ? $forma['id'] : null,
-                'descricao' => 'Mensalidade Sistema',
-                'valor' => floatval($conta['valor_mensal']),
-                'vencimento' => $novaDataVencimento,
-                'observacoes' => 'Geração automática de conta para pagamento da mensalidade do sistema',
-                'origem' => 'M',
-                'natureza' => 'D',
-                'situacao' => 'PE',
-                'token_unico' => $tokenUnico,
-            ]);
-
-            error_log("Data de vencimento atualizada para conta {$idConta}: {$novaDataVencimento}");
         } catch (\Exception $e) {
             error_log("Erro ao atualizar vencimento da conta: " . $e->getMessage());
             throw $e;
@@ -724,6 +629,20 @@ class MercadoPagoController extends ControllerBase
                 "success" => false,
                 "message" => $e->getMessage()
             ]);
+        }
+    }
+
+    public function cancelarPorFatura($idFatura) {
+        try {
+            $pagamentos = $this->model->find(['id_fatura' => $idFatura]);
+
+            foreach ($pagamentos as $pagamento) {
+                $this->cancelarApenas($pagamento['id']);
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
         }
     }
 

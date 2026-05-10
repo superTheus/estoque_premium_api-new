@@ -90,7 +90,7 @@ class WebhookLogsController extends ControllerBase
         try {
             // Capturar o corpo da requisição
             $body = file_get_contents('php://input');
-            
+
             // Se o body estiver vazio, tentar pegar do POST
             if (empty($body)) {
                 $body = json_encode($_POST);
@@ -166,38 +166,6 @@ class WebhookLogsController extends ControllerBase
             echo json_encode([
                 "total" => $this->model->totalCount($filter)['total'],
                 "data" => $results
-            ]);
-        } catch (\Exception $e) {
-            http_response_code(500);
-            echo json_encode([
-                "success" => false,
-                "message" => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Limpar logs antigos (mais de X dias)
-     */
-    public function limparLogsAntigos($dias = 30)
-    {
-        try {
-            $dataLimite = date('Y-m-d H:i:s', strtotime("-{$dias} days"));
-            
-            $sql = "DELETE FROM {$this->model->getTableName()} WHERE dthr_registro < :data_limite";
-            
-            $conn = $this->model->conn;
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':data_limite', $dataLimite);
-            $stmt->execute();
-            
-            $deletados = $stmt->rowCount();
-
-            http_response_code(200);
-            echo json_encode([
-                "success" => true,
-                "message" => "Logs antigos removidos com sucesso",
-                "registros_deletados" => $deletados
             ]);
         } catch (\Exception $e) {
             http_response_code(500);
