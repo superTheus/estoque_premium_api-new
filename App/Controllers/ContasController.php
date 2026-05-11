@@ -236,8 +236,6 @@ class ContasController extends ControllerBase
           }
         }
 
-        // die(json_encode($clienteContaSistema));
-
         $formaPagamentoController = new FormasPagamentoController();
         $formaPagamento = $formaPagamentoController->findOnly([
           'filter' => [

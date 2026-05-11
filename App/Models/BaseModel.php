@@ -171,6 +171,12 @@ abstract class BaseModel extends Connection
             "model" => CartasCorrecaoModel::class,
             "controller" => Controllers\CartasCorrecaoController::class,
         ],
+        [
+            "property" => "contas_usuarios_faturas",
+            "table" => "contas_usuarios_faturas",
+            "model" => ContasUsuariosFaturasModel::class,
+            "controller" => Controllers\ContasUsuariosFaturasController::class,
+        ],
     ];
 
     public function __construct($id = null)
@@ -287,7 +293,8 @@ abstract class BaseModel extends Connection
 
     protected function handleLikeFilter($field, $value, &$conditions, &$bindings)
     {
-        if (empty($value)) return;
+        if (empty($value))
+            return;
 
         $param = ':' . str_replace('.', '_', $field) . '_' . count($bindings);
         if (ctype_digit($value)) {
@@ -301,7 +308,8 @@ abstract class BaseModel extends Connection
 
     protected function handleInFilter($field, $values, &$conditions, &$bindings, $notIn = false)
     {
-        if (empty($values)) return;
+        if (empty($values))
+            return;
 
         $params = [];
         foreach ($values as $val) {
@@ -316,7 +324,8 @@ abstract class BaseModel extends Connection
 
     protected function handleBetweenFilter($field, $values, &$conditions, &$bindings)
     {
-        if (count($values) != 2) return;
+        if (count($values) != 2)
+            return;
 
         $param1 = ':' . str_replace('.', '_', $field) . '_between_1';
         $param2 = ':' . str_replace('.', '_', $field) . '_between_2';
@@ -331,7 +340,8 @@ abstract class BaseModel extends Connection
     {
         $orValues = $value['OR'] ?? [];
 
-        if (empty($orValues)) return;
+        if (empty($orValues))
+            return;
 
         $orConditions = [];
         foreach ($orValues as $val) {
@@ -350,7 +360,8 @@ abstract class BaseModel extends Connection
     {
         $andValues = $value['AND'] ?? [];
 
-        if (empty($andValues)) return;
+        if (empty($andValues))
+            return;
 
         $andConditions = [];
         foreach ($andValues as $val) {

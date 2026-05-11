@@ -14,6 +14,14 @@ class ContasUsuariosFaturasModel extends BaseModel
 
     public function __construct($id = null)
     {
+        $this->relationConfig = [
+            [
+                'property' => 'mercado_pago_pagamentos',
+                'model' => MercadoPagoModel::class,
+                'min_count' => 0,
+                'foreign_key' => 'id_fatura'
+            ]
+        ];
         parent::__construct($id);
     }
 

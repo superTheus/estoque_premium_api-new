@@ -339,24 +339,25 @@ class ContasUsuariosController extends ControllerBase
             $create = $data[$relation['property']]['create'] ?? [];
             $update = $data[$relation['property']]['update'] ?? [];
 
-            foreach ($create as $item) {
+            foreach ($create as $itemCreate) {
               $model = new $relation['model']();
-              $this->validateRequiredFields($model, $item, [$relation['foreign_key']]);
-              $item[$relation['foreign_key']] = $currentData['id'];
-              $model->insert($item);
+              $this->validateRequiredFields($model, $itemCreate, [$relation['foreign_key']]);
+              $itemCreate[$relation['foreign_key']] = $currentData['id'];
+              $model->insert($itemCreate);
             }
 
-            foreach ($update as $item) {
-              $model = new $relation['model']($item['id']);
+            foreach ($update as $itemUpdate) {
+              $model = new $relation['model']($itemUpdate['id']);
               $currentDataItem = $model->current();
               if (!$currentDataItem) {
-                throw new \Exception("Item com ID {$item['id']} não foi encontrado em relação {$relation['property']}");
+                throw new \Exception("Item com ID {$itemUpdate['id']} não foi encontrado em relação {$relation['property']}");
               }
               if ($currentDataItem[$relation['foreign_key']] !== $currentData['id']) {
-                throw new \Exception("Item com ID {$item['id']} não pertence ao cliente atual");
+                throw new \Exception("Item com ID {$itemUpdate['id']} não pertence ao cliente atual");
               }
-              $this->validateUpdateFields($model, $item, $currentDataItem);
-              $model->update($item);
+
+              $this->validateUpdateFields($model, $itemUpdate, $currentDataItem);
+              $model->update($itemUpdate);
             }
 
             foreach ($delete as $item) {
@@ -444,5 +445,36 @@ class ContasUsuariosController extends ControllerBase
       http_response_code(500);
       echo json_encode(["message" => $e->getMessage()]);
     }
+  }
+
+  public function pegarFatura()
+  {
+    $currentData = $this->model->current();
+
+    if (!$currentData) {
+      http_response_code(404);
+      echo json_encode(["message" => "Conta não encontrada"]);
+      return;
+    }
+
+    $contasUsuariosFaturasController = new ContasUsuariosFaturasController();
+    $fatura = $contasUsuariosFaturasController->findOnly([
+      "filter" => [
+        "id_conta_usuario" => $currentData['id'],
+        "status" => "PE"
+      ],
+      "includes" => [
+        "mercado_pago_pagamentos" => true
+      ]
+    ])[0] ?? null;
+
+    if (!$fatura) {
+      http_response_code(404);
+      echo json_encode(["message" => "Fatura não encontrada"]);
+      return;
+    }
+
+    http_response_code(200);
+    echo json_encode($fatura);
   }
 }

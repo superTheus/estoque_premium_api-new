@@ -636,6 +636,13 @@ class Routers
                     $mercadoPagoController->consultarPagamento($data);
                 });
             });
+
+            $router->mount('/faturas', function () use ($router) {
+                $router->get('/{id}', function ($id) {
+                    $contasController = new ContasUsuariosController($id);
+                    $contasController->pegarFatura();
+                });
+            });
         });
 
         $router->mount('/root', function () use ($router) {

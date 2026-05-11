@@ -63,7 +63,11 @@ class ContasUsuariosFaturasController extends ControllerBase
             $result = $this->model->insert($data);
 
             if ($result) {
-                $this->gerarFinanceiro($result['id']);
+                try {
+                    $this->gerarFinanceiro($result['id']);
+                } catch (\Exception $e) {
+                    error_log("Erro ao gerar financeiro: " . $e->getMessage());
+                }
             }
 
             return $result;
@@ -267,8 +271,6 @@ class ContasUsuariosFaturasController extends ControllerBase
                     "descricao" => "Mensalidade do Sistema para " . ($empresa['razao_social'] ?? $usuario['nome'] ?? 'Cliente'),
                     "id_conta_usuario" => $id
                 ]);
-
-                die(json_encode($result));
             }
         } catch (\Exception $e) {
             throw new \Exception($e->getMessage());
