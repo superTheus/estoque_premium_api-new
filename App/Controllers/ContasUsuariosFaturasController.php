@@ -81,6 +81,12 @@ class ContasUsuariosFaturasController extends ControllerBase
                             "status" => "CA",
                         ]);
                     }
+
+                    $contaUsuarioController = new ContasUsuariosController($result['id_conta_usuario']);
+                    $contaUsuarioController->updateOnly([
+                        "vencimento" => $result['vencimento'],
+                        "valor_mensal" => $result['valor']
+                    ]);
                 } catch (\Exception $e) {
                     error_log("Erro ao gerar financeiro: " . $e->getMessage());
                 }
