@@ -60,11 +60,27 @@ class ContasUsuariosFaturasController extends ControllerBase
     {
         try {
             $this->validateRequiredFields($this->model, $data);
+
+            $faturasAtuais = $this->findOnly([
+                "filter" => [
+                    "id_conta_usuario" => $data['id_conta_usuario'],
+                    "status" => "PE",
+                    "deletado" => "N"
+                ]
+            ]);
+
             $result = $this->model->insert($data);
 
             if ($result) {
                 try {
-                    $this->gerarFinanceiro($result['id']);
+                    $this->gerarFinanceiroApenas($result['id']);
+
+                    foreach ($faturasAtuais as $fatura) {
+                        $updateController = new ContasUsuariosFaturasController($fatura['id']);
+                        $updateController->updateOnly([
+                            "status" => "CA",
+                        ]);
+                    }
                 } catch (\Exception $e) {
                     error_log("Erro ao gerar financeiro: " . $e->getMessage());
                 }
@@ -95,7 +111,7 @@ class ContasUsuariosFaturasController extends ControllerBase
         try {
             $currentData = $this->model->current();
             if (!$currentData) {
-                throw new \Exception("User not found");
+                throw new \Exception("Fatura não encontrada");
             }
 
             $result = $this->model->update($data);
@@ -111,9 +127,23 @@ class ContasUsuariosFaturasController extends ControllerBase
                 }
             }
 
-            if($result && $currentData['status'] !== $result['status'] && $result['status'] === 'CA') {
-                $mercadoPagoController = new MercadoPagoController();
-                $mercadoPagoController->cancelarPorFatura($result['id']);
+            if ($result) {
+                if ($currentData['status'] !== $result['status'] && $result['status'] === 'CA') {
+                    $mercadoPagoController = new MercadoPagoController();
+                    $mercadoPagoController->cancelarPorFatura($result['id']);
+
+                } else if ($currentData['vencimento'] !== $result['vencimento'] || $currentData['valor'] !== $result['valor']) {
+                    $mercadoPagoController = new MercadoPagoController();
+                    $mercadoPagoController->cancelarPorFatura($result['id']);
+
+                    $contaUsuarioController = new ContasUsuariosController($currentData['id_conta_usuario']);
+                    $contaUsuarioController->updateOnly([
+                        "vencimento" => $result['vencimento'],
+                        "valor_mensal" => $result['valor']
+                    ]);
+
+                    $this->gerarFinanceiroApenas($result['id']);
+                }
             }
 
             return $result;
@@ -153,14 +183,17 @@ class ContasUsuariosFaturasController extends ControllerBase
         $this->model = null;
     }
 
-    public function gerarFinanceiro($id)
+    public function gerarFinanceiroApenas($id)
     {
         try {
             $contasUsuariosFaturasController = new ContasUsuariosFaturasController($id);
             $contasUsuarios = $contasUsuariosFaturasController->findUnique();
 
             if (!$contasUsuarios) {
-                throw new \Exception("Fatura não encontrada");
+                return [
+                    'error' => true,
+                    'message' => "Fatura não encontrada"
+                ];
             }
 
             $contasUsuarionsController = new ContasUsuariosController($contasUsuarios['id_conta_usuario']);
@@ -175,14 +208,20 @@ class ContasUsuariosFaturasController extends ControllerBase
             ])[0] ?? null;
 
             if (!$contaUsuario) {
-                throw new \Exception("Conta de usuário não encontrada");
+                return [
+                    'error' => true,
+                    'message' => "Conta de usuário não encontrada"
+                ];
             }
 
             $empresa = $contaUsuario['empresas'][0] ?? null;
             $usuario = $contaUsuario['usuarios'][0] ?? null;
 
             if (!$empresa || !$usuario) {
-                throw new \Exception("Empresa ou usuário não encontrado");
+                return [
+                    'error' => true,
+                    'message' => "Empresa ou usuário não encontrado"
+                ];
             }
 
             if (
@@ -222,9 +261,29 @@ class ContasUsuariosFaturasController extends ControllerBase
                         'pix' => $pagamentoPix
                     ];
                 } else {
-                    throw new \Exception("Fatura ainda não está próxima do vencimento. Faltam " . UtilsModel::diasFaltantes($contaUsuario['vencimento']) . " dias para o vencimento.");
+                    return [
+                        'error' => true,
+                        'message' => "Fatura ainda não está próxima do vencimento. Faltam " . UtilsModel::diasFaltantes($contaUsuario['vencimento']) . " dias para o vencimento."
+                    ];
                 }
             }
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
+    public function gerarFinanceiro($id)
+    {
+        try {
+            $result = $this->gerarFinanceiroApenas($id);
+
+            if (isset($result['error']) && $result['error']) {
+                http_response_code(400);
+            } else {
+                http_response_code(200);
+            }
+
+            echo json_encode($result);
         } catch (\Exception $e) {
             throw new \Exception($e->getMessage());
         }
