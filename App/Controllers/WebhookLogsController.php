@@ -50,6 +50,16 @@ class WebhookLogsController extends ControllerBase
         }
     }
 
+    public function createOnly($data) {
+        try {
+            $result = $this->model->insert($data);
+
+            return $result;
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
     public function create($data)
     {
         try {
