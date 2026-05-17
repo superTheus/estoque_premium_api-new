@@ -216,7 +216,8 @@ class MercadoPagoController extends ControllerBase
             echo json_encode([
                 "success" => true,
                 "message" => "Webhook processado com sucesso",
-                "data" => $pagamento
+                "data" => $pagamento,
+                "payment" => $payment
             ]);
         } catch (\Exception $e) {
             error_log("Erro no webhook: " . $e->getMessage());

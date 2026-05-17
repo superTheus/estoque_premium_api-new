@@ -72,21 +72,21 @@ class ContasUsuariosFaturasController extends ControllerBase
             $result = $this->model->insert($data);
 
             if ($result) {
+                foreach ($faturasAtuais as $fatura) {
+                    $updateController = new ContasUsuariosFaturasController($fatura['id']);
+                    $updateController->updateOnly([
+                        "status" => "CA",
+                    ]);
+                }
+
+                $contaUsuarioController = new ContasUsuariosController($result['id_conta_usuario']);
+                $contaUsuarioController->updateOnly([
+                    "vencimento" => $result['vencimento'],
+                    "valor_mensal" => $result['valor']
+                ]);
+
                 try {
                     $this->gerarFinanceiroApenas($result['id']);
-
-                    foreach ($faturasAtuais as $fatura) {
-                        $updateController = new ContasUsuariosFaturasController($fatura['id']);
-                        $updateController->updateOnly([
-                            "status" => "CA",
-                        ]);
-                    }
-
-                    $contaUsuarioController = new ContasUsuariosController($result['id_conta_usuario']);
-                    $contaUsuarioController->updateOnly([
-                        "vencimento" => $result['vencimento'],
-                        "valor_mensal" => $result['valor']
-                    ]);
                 } catch (\Exception $e) {
                     error_log("Erro ao gerar financeiro: " . $e->getMessage());
                 }
