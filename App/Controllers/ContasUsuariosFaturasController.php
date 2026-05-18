@@ -263,7 +263,7 @@ class ContasUsuariosFaturasController extends ControllerBase
                     $pagamentoPix = $mercadoPagoController->gerarPixApenas($dataPayment);
 
                     return [
-                        'boleto' => null,
+                        'boleto' => $pagamentoBoleto,
                         'pix' => $pagamentoPix
                     ];
                 } else {
