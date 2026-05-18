@@ -193,7 +193,10 @@ class MercadoPagoController extends ControllerBase
             if (!$pagamento) {
                 error_log("Pagamento não encontrado no banco: " . $paymentId);
                 http_response_code(404);
-                echo json_encode(["message" => "Pagamento não encontrado"]);
+                echo json_encode([
+                    "message" => "Pagamento não encontrado",
+                    "data" => $paymentId
+                ]);
                 return;
             }
 
