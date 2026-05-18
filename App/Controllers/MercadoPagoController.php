@@ -113,7 +113,7 @@ class MercadoPagoController extends ControllerBase
                         "number" => $data['cnpj']
                     ]
                 ],
-                "notification_url" => $_ENV['URL_WEBHOOKS']
+                // "notification_url" => $_ENV['URL_WEBHOOKS']
             ];
 
             $payment = $client->create($paymentData);
@@ -134,6 +134,22 @@ class MercadoPagoController extends ControllerBase
 
             $resultado = $this->model->insert($pagamentoData);
             return $resultado;
+        } catch (MPApiException $e) {
+            $apiResponse = $e->getApiResponse();
+            $content = $apiResponse ? $apiResponse->getContent() : null;
+
+            error_log("Erro MPApiException PIX: " . json_encode([
+                'message' => $e->getMessage(),
+                'status_code' => $e->getStatusCode(),
+                'content' => $content
+            ]));
+
+            throw new \Exception(json_encode([
+                "success" => false,
+                "message" => "Erro na API do Mercado Pago: " . $e->getMessage(),
+                "status_code" => $e->getStatusCode(),
+                "details" => $content
+            ]));
         } catch (\Exception $e) {
             throw new \Exception($e->getMessage());
         }

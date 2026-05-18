@@ -263,7 +263,7 @@ class ContasUsuariosFaturasController extends ControllerBase
                     $pagamentoPix = $mercadoPagoController->gerarPixApenas($dataPayment);
 
                     return [
-                        'boleto' => $pagamentoBoleto,
+                        'boleto' => null,
                         'pix' => $pagamentoPix
                     ];
                 } else {
@@ -291,7 +291,8 @@ class ContasUsuariosFaturasController extends ControllerBase
 
             echo json_encode($result);
         } catch (\Exception $e) {
-            throw new \Exception($e->getMessage());
+            http_response_code(500);
+            echo json_encode(["message" => $e->getMessage()]);
         }
     }
 
