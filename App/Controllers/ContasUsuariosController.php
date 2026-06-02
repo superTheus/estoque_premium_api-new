@@ -193,7 +193,7 @@ class ContasUsuariosController extends ControllerBase
           [
             "id_conta_usuario" => $result['id'],
             "descricao" => "Mensalidade do Sistema para " . ($empresa['razao_social'] ?? $usuario['nome'] ?? 'Cliente'),
-            "valor" => $result['valor_mensal'] ?? 90.00,
+            "valor" => $result['valor_mensal'],
             "vencimento" => $result['vencimento'] ?? date('Y-m-d', strtotime('+7 days'))
           ]
         );

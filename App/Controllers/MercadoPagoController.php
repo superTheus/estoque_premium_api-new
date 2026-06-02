@@ -286,7 +286,7 @@ class MercadoPagoController extends ControllerBase
                 'id_conta_usuario' => $idConta,
                 'vencimento' => $novaDataVencimento,
                 'status' => 'PA',
-                'valor' => $conta['valor'] ?? 90.00,
+                'valor' => $conta['valor_mensal'],
                 'descricao' => 'Mensalidade do Sistema para ' . ($empresa['razao_social'] ?? 'Cliente'),
             ]);
 
