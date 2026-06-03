@@ -89,7 +89,7 @@ class UtilsModel
      * @param string $cnpj CNPJ a ser consultado (com ou sem formatação)
      * @return array Dados da empresa ou erro
      */
-    public static function consultarCNPJ($cnpj)
+    public static function consultarCNPJ($cnpj, $alternative = false)
     {
         try {
             // Remover formatação do CNPJ (pontos, barras e hífens)
@@ -101,7 +101,7 @@ class UtilsModel
             }
 
             // Fazer requisição GET para a API
-            $url = "https://receitaws.com.br/v1/cnpj/{$cnpjLimpo}";
+            $url = $alternative ? "https://publica.cnpj.ws/cnpj/{$cnpjLimpo}" : "https://receitaws.com.br/v1/cnpj/{$cnpjLimpo}";
             
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
