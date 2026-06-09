@@ -13,6 +13,7 @@ use App\Controllers\FormasPagamentoController;
 use App\Controllers\FornecedoresController;
 use App\Controllers\MarcasController;
 use App\Controllers\MercadoPagoController;
+use App\Controllers\MotoristasController;
 use App\Controllers\OperacoesController;
 use App\Controllers\ProdutosController;
 use App\Controllers\RegrasFiscalController;
@@ -23,6 +24,7 @@ use App\Controllers\TransportadoraController;
 use App\Controllers\UsuariosController;
 use App\Controllers\VendaPagamentosController;
 use App\Controllers\VendasController;
+use App\Controllers\VendedoresController;
 use App\Controllers\WebhookLogsController;
 use App\Middlewares\AuthMiddleware;
 use Bramus\Router\Router;
@@ -177,6 +179,70 @@ class Routers
                     $fornecedoresController = new FornecedoresController();
                     $data = json_decode(file_get_contents('php://input'), true);
                     $fornecedoresController->searchDataTable($data);
+                });
+            });
+
+            $router->mount('/motoristas', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $motoristasController = new MotoristasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $motoristasController->search($data);
+                });
+
+                $router->post('/criar', function () {
+                    $motoristasController = new MotoristasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $motoristasController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $motoristasController = new MotoristasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $motoristasController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $motoristasController = new MotoristasController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $motoristasController->update($data);
+                });
+
+                $router->post('/tabela', function () {
+                    $motoristasController = new MotoristasController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $motoristasController->searchDataTable($data);
+                });
+            });
+
+            $router->mount('/vendedores', function () use ($router) {
+                $router->post('/buscar', function () {
+                    $vendedoresController = new VendedoresController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendedoresController->search($data);
+                });
+
+                $router->post('/criar', function () {
+                    $vendedoresController = new VendedoresController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendedoresController->create($data);
+                });
+
+                $router->post('/listar', function () {
+                    $vendedoresController = new VendedoresController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendedoresController->find($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $vendedoresController = new VendedoresController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendedoresController->update($data);
+                });
+
+                $router->post('/tabela', function () {
+                    $vendedoresController = new VendedoresController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $vendedoresController->searchDataTable($data);
                 });
             });
 
