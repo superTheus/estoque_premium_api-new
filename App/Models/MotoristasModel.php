@@ -94,6 +94,22 @@ class MotoristasModel extends BaseModel
         }
     }
 
+    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
+    {
+        try {
+            $queryBuilder = new QueryBuilder($this->conn, $this->table);
+            $result = $queryBuilder->select("{$this->table}.*")
+                ->multipleOrWhere([
+                    ["{$this->table}.nome", "%$searchTerm%", 'LIKE'],
+                ])->where("{$this->table}.id_conta", $idConta)->where("{$this->table}.deletado", "N")
+                ->limit($limit)->offset($offset)->execute();
+
+            return $result;
+        } catch (\PDOException $e) {
+            throw new \PDOException($e->getMessage());
+        }
+    }
+
     public function find($filters = [], $limit = null, $offset = null, $order = [])
     {
         try {
