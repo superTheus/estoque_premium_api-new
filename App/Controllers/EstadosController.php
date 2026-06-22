@@ -23,7 +23,7 @@ class EstadosController extends ControllerBase
             $offset = $data && isset($data['offset']) ? $data['offset'] : null;
             $order = $data && isset($data['order']) ? $data['order'] : [];
             $dateRange = $data && isset($data['date_ranger']) ? $data['date_ranger'] : [];
-            $results = $this->model->find(array_merge($filter, ["deletado" => "N"]), $limit, $offset, $order, $dateRange);
+            $results = $this->model->find($filter, $limit, $offset, $order);
 
             if (isset($data['includes'])) {
                 $this->processIncludes($results, $data['includes']);
@@ -38,12 +38,11 @@ class EstadosController extends ControllerBase
     public function find($data = [])
     {
         $filter = $data && isset($data['filter']) ? $data['filter'] : [];
-        $dateRange = $data && isset($data['date_ranger']) ? $data['date_ranger'] : [];
 
         try {
             http_response_code(200);
             echo json_encode([
-                "total" => $this->model->totalCount(array_merge($filter, ["deletado" => "N"]), $dateRange)['total'],
+                "total" => $this->model->totalCount($filter)['total'],
                 "data" => $this->findOnly($data)
             ]);
         } catch (\Exception $e) {

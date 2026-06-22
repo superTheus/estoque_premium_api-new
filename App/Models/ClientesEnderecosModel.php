@@ -7,19 +7,20 @@ use App\Models\BaseModel;
 use PDO;
 use PDOException;
 
-class CategoriasModel extends BaseModel
+class ClientesEnderecosModel extends BaseModel
 {
     private $attributes = [];
-    protected $table = 'categorias';
+    protected $table = 'clientes_enderecos';
 
     public function __construct($id = null)
     {
         $this->relationConfig = [
             [
-                'property' => 'subcategorias',
-                'model' => SubcategoriasModel::class,
+                'property' => 'clientes',
+                'model' => ClientesModel::class,
                 'min_count' => 0,
-                'foreign_key' => 'id_categoria',
+                'foreign_key' => 'id_cliente',
+                'ignore' => true,
             ]
         ];
         parent::__construct($id);
@@ -47,6 +48,30 @@ class CategoriasModel extends BaseModel
         }
 
         throw new \BadMethodCallException("Método {$method} não existe");
+    }
+
+    public function search($searchTerm, $idConta, $limit = 10, $offset = 0)
+    {
+        try {
+            $queryBuilder = new QueryBuilder($this->conn, "{$this->table}");
+            $result = $queryBuilder->select("*")
+                ->multipleOrWhere([
+                    ["{$this->table}.nome", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.razao_social", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.apelido", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.rg", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.inscricao_estadual", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.email", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.telefone", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.celular", "%$searchTerm%", 'LIKE'],
+                    ["{$this->table}.documento", "%$searchTerm%", 'LIKE']
+                ])->where("{$this->table}.id_conta", $idConta)->where("{$this->table}.deletado", "N")
+                ->limit($limit)->offset($offset)->execute();
+
+            return $result;
+        } catch (\PDOException $e) {
+            throw new \PDOException($e->getMessage());
+        }
     }
 
     public function findById($id)
@@ -166,7 +191,6 @@ class CategoriasModel extends BaseModel
     public function insert($data)
     {
         try {
-
             $colunas = [];
             $valores = [];
             $placeholders = [];

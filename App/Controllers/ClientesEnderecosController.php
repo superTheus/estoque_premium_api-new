@@ -2,17 +2,17 @@
 
 namespace App\Controllers;
 
-use App\Models\CidadesModel;
+use App\Models\ClientesEnderecosModel;
 use Dotenv\Dotenv;
 
-class CidadesController extends ControllerBase
+class ClientesEnderecosController extends ControllerBase
 {
     public function __construct($id = null)
     {
         $dotenv = Dotenv::createImmutable(dirname(__DIR__, 2));
         $dotenv->load();
 
-        $this->model = new CidadesModel($id ? $id : null);
+        $this->model = new ClientesEnderecosModel($id ? $id : null);
     }
 
     public function findOnly($data = [])
@@ -57,12 +57,23 @@ class CidadesController extends ControllerBase
         return $this->model->current();
     }
 
+    public function createOnly($data)
+    {
+        try {
+            $this->validateRequiredFields($this->model, $data);
+            $result = $this->model->insert($data);
+
+            return $result;
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
+    }
+
     public function create($data)
     {
         try {
             $data['id_conta'] = $_REQUEST['id_conta'];
-            $this->validateRequiredFields($this->model, $data);
-            $result = $this->model->insert($data);
+            $result = $this->createOnly($data);
 
             http_response_code(200);
             echo json_encode($result);
@@ -174,59 +185,6 @@ class CidadesController extends ControllerBase
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(["message" => $e->getMessage()]);
-        }
-    }
-
-    public function listCidades($uf)
-    {
-        try {
-            $estadosController = new EstadosController();
-            $cidadesController = new CidadesController();
-
-            $uf = $estadosController->findOnly([
-                "filter" => ["uf" => $uf]
-            ])[0] ?? null;
-
-            $cidades = $cidadesController->findOnly([
-                "filter" => ["id_estado" => $uf['id']]
-            ]);
-
-            echo json_encode($cidades);
-        } catch (\Exception $e) {
-            http_response_code(500);
-            echo json_encode(['error' => $e->getMessage()]);
-        }
-    }
-
-    public function listCidadesUnica($cidade, $uf)
-    {
-        try {
-            $estadosController = new EstadosController();
-            $cidadesController = new CidadesController();
-
-            $cidadesController = new CidadesController();
-
-            $uf = $estadosController->findOnly([
-                "filter" => ["uf" => $uf]
-            ])[0] ?? null;
-
-            $cidade = $cidadesController->findOnly([
-                "filter" => [
-                    "id_estado" => $uf['id'],
-                    "nome" => $cidade
-                ]
-            ])[0] ?? null;
-            
-            if (!$cidade) {
-                http_response_code(404);
-                echo json_encode(['error' => 'Cidade não encontrada']);
-                return;
-            }
-
-            echo json_encode($cidade);
-        } catch (\Exception $e) {
-            http_response_code(500);
-            echo json_encode(['error' => $e->getMessage()]);
         }
     }
 }

@@ -177,6 +177,24 @@ abstract class BaseModel extends Connection
             "model" => ContasUsuariosFaturasModel::class,
             "controller" => Controllers\ContasUsuariosFaturasController::class,
         ],
+        [
+            "property" => "clientes_enderecos",
+            "table" => "clientes_enderecos",
+            "model" => ClientesEnderecosModel::class,
+            "controller" => Controllers\ClientesEnderecosController::class,
+        ],
+        [
+            "property" => "vendedores",
+            "table" => "vendedores",
+            "model" => VendedoresModel::class,
+            "controller" => Controllers\VendedoresController::class,
+        ],
+        [
+            "property" => "motoristas",
+            "table" => "motoristas",
+            "model" => MotoristasModel::class,
+            "controller" => Controllers\MotoristasController::class,
+        ],
     ];
 
     public function __construct($id = null)

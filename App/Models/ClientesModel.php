@@ -14,6 +14,15 @@ class ClientesModel extends BaseModel
 
     public function __construct($id = null)
     {
+        $this->relationConfig = [
+            [
+                'property' => 'clientes_enderecos',
+                'model' => ClientesEnderecosModel::class,
+                'min_count' => 0,
+                'foreign_key' => 'id_cliente',
+                'key' => 'id',
+            ]
+        ];
         parent::__construct($id);
     }
 

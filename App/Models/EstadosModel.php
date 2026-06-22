@@ -11,7 +11,7 @@ use PDOException;
 class EstadosModel extends BaseModel
 {
     private $attributes = [];
-    protected $table = 'estado';
+    protected $table = 'estados';
 
     public function __construct($id = null)
     {

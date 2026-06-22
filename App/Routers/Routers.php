@@ -3,11 +3,13 @@
 namespace App\Routers;
 
 use App\Controllers\CategoriasController;
+use App\Controllers\CidadesController;
 use App\Controllers\ClientesController;
 use App\Controllers\ContasController;
 use App\Controllers\ContasUsuariosController;
 use App\Controllers\ContasUsuariosFaturasController;
 use App\Controllers\EmpresasController;
+use App\Controllers\EstadosController;
 use App\Controllers\FiscalController;
 use App\Controllers\FormasPagamentoController;
 use App\Controllers\FornecedoresController;
@@ -647,6 +649,40 @@ class Routers
                 $router->get('/testar/{cnpj}', function ($cnpj) {
                     $fiscalController = new FiscalController();
                     $fiscalController->testarCertificadoPorCnpj($cnpj);
+                });
+            });
+
+            $router->mount('/estados', function () use ($router) {
+                $router->post('/', function () {
+                    $estadosController = new EstadosController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $estadosController->find($data);
+                });
+
+                $router->get('/{uf}', function ($uf) {
+                    $estadosController = new EstadosController();
+                    $uf = $estadosController->findOnly([
+                        "filter" => ["uf" => $uf]
+                    ])[0] ?? null;
+
+                    if ($uf) {
+                        echo json_encode($uf);
+                    } else {
+                        http_response_code(404);
+                        echo json_encode(["message" => "Estado não encontrado"]);
+                    }
+                });
+            });
+
+            $router->mount('/cidades', function () use ($router) {
+                $router->get('/{uf}/{cidade}', function ($uf, $cidade) {
+                    $cidadesController = new CidadesController();
+                    $cidadesController->listCidadesUnica($cidade, $uf);
+                });
+
+                $router->post('/{uf}', function ($uf) {
+                    $cidadesController = new CidadesController();
+                    $cidadesController->listCidades($uf);
                 });
             });
 
