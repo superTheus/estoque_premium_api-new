@@ -5,6 +5,7 @@ namespace App\Routers;
 use App\Controllers\CategoriasController;
 use App\Controllers\CidadesController;
 use App\Controllers\ClientesController;
+use App\Controllers\ClientesEnderecosController;
 use App\Controllers\ContasController;
 use App\Controllers\ContasUsuariosController;
 use App\Controllers\ContasUsuariosFaturasController;
@@ -334,6 +335,31 @@ class Routers
                     $clientesController = new ClientesController($id);
                     $data = json_decode(file_get_contents('php://input'), true);
                     $clientesController->update($data);
+                });
+            });
+
+            $router->mount('/clientes-enderecos', function () use ($router) {
+                $router->post('/listar', function () {
+                    $clientesEnderecosController = new ClientesEnderecosController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $clientesEnderecosController->find($data);
+                });
+
+                $router->post('/criar', function () {
+                    $clientesEnderecosController = new ClientesEnderecosController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $clientesEnderecosController->create($data);
+                });
+
+                $router->put('/atualizar/{id}', function ($id) {
+                    $clientesEnderecosController = new ClientesEnderecosController($id);
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $clientesEnderecosController->update($data);
+                });
+
+                $router->delete('/deletar/{id}', function ($id) {
+                    $clientesEnderecosController = new ClientesEnderecosController($id);
+                    $clientesEnderecosController->delete($id);
                 });
             });
 
@@ -722,6 +748,11 @@ class Routers
                     $reportsController = new ReportsController();
                     $data = json_decode(file_get_contents('php://input'), true);
                     $reportsController->getEstoqueReports($data);
+                });
+                $router->post('/comissoes', function () {
+                    $reportsController = new ReportsController();
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    $reportsController->getComissoesReports($data);
                 });
             });
 
