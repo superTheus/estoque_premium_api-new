@@ -62,6 +62,12 @@ class Routers
                 echo "Rota Privada: GET /private";
             });
 
+            $router->put('/preferencias', function () {
+                $contaUsuarioController = new ContasUsuariosController();
+                $data = json_decode(file_get_contents('php://input'), true);
+                $contaUsuarioController->atualizarPreferencias($data);
+            });
+
             $router->mount('/usuarios', function () use ($router) {
                 $router->post('/buscar', function () {
                     $usuariosController = new UsuariosController();

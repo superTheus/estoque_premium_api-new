@@ -267,7 +267,7 @@ class UsuariosModel extends BaseModel
                     continue;
                 }
 
-                if (isset($data[$columnName])) {
+                if (array_key_exists($columnName, $data)) {
                     $sets[] = "{$columnName} = :{$columnName}";
                     $values[":{$columnName}"] = $this->attributes[$columnName];
                 }

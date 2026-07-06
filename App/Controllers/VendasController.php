@@ -17,15 +17,104 @@ class VendasController extends ControllerBase
         $this->model = new VendasModel($id ? $id : null);
     }
 
+    private function getAuthenticatedUserData()
+    {
+        $user = $_REQUEST['user'] ?? null;
+
+        if (!$user) {
+            return [];
+        }
+
+        return is_object($user) ? get_object_vars($user) : (array) $user;
+    }
+
+    private function getAuthenticatedDriverId()
+    {
+        $user = $this->getAuthenticatedUserData();
+        return isset($user['id_motorista']) ? (int) $user['id_motorista'] : 0;
+    }
+
+    private function isAuthenticatedDeliveryDriver()
+    {
+        $user = $this->getAuthenticatedUserData();
+        return ($user['perfil'] ?? null) === 'F' && $this->getAuthenticatedDriverId() > 0;
+    }
+
+    private function applyDeliveryDriverListScope($filter)
+    {
+        if (!$this->isAuthenticatedDeliveryDriver()) {
+            return $filter;
+        }
+
+        $filter['id_conta'] = $_REQUEST['id_conta'] ?? ($filter['id_conta'] ?? null);
+        $filter['tem_entrega'] = 'S';
+        $filter['status'] = 'FE';
+
+        return $filter;
+    }
+
+    private function assertDeliveryDriverCanUpdate($currentData, $data)
+    {
+        if (!$this->isAuthenticatedDeliveryDriver()) {
+            return;
+        }
+
+        $driverId = $this->getAuthenticatedDriverId();
+        $currentDriverId = isset($currentData['id_motorista']) ? (int) $currentData['id_motorista'] : 0;
+        $isUnassigned = $currentDriverId <= 0;
+        $isAssignedToDriver = $currentDriverId === $driverId;
+        $allowedFields = ['id_motorista', 'status_entrega'];
+
+        if (($currentData['tem_entrega'] ?? null) !== 'S') {
+            throw new \Exception("Motorista so pode alterar vendas com entrega.");
+        }
+
+        if (($currentData['status'] ?? null) !== 'FE') {
+            throw new \Exception("Motorista so pode alterar entregas de vendas finalizadas.");
+        }
+
+        if ((int) ($currentData['id_conta'] ?? 0) !== (int) ($_REQUEST['id_conta'] ?? 0)) {
+            throw new \Exception("Venda nao pertence a conta do motorista.");
+        }
+
+        if (!$isUnassigned && !$isAssignedToDriver) {
+            throw new \Exception("Motorista nao pode alterar entrega de outro motorista.");
+        }
+
+        foreach (array_keys($data) as $field) {
+            if (!in_array($field, $allowedFields, true)) {
+                throw new \Exception("Motorista nao pode alterar este campo da venda.");
+            }
+        }
+
+        if (array_key_exists('id_motorista', $data) && (int) $data['id_motorista'] !== $driverId) {
+            throw new \Exception("Motorista so pode pegar entrega para si.");
+        }
+
+        if (!$isAssignedToDriver && !array_key_exists('id_motorista', $data)) {
+            throw new \Exception("Pegue a entrega antes de alterar o status.");
+        }
+
+        if (array_key_exists('status_entrega', $data) && !in_array($data['status_entrega'], ['PE', 'EA', 'ET'], true)) {
+            throw new \Exception("Status de entrega invalido.");
+        }
+    }
+
     public function findOnly($data = [])
     {
         try {
             $filter = $data && isset($data['filter']) ? $data['filter'] : [];
+            $filter = $this->applyDeliveryDriverListScope($filter);
             $limit = $data && isset($data['limit']) ? $data['limit'] : null;
             $offset = $data && isset($data['offset']) ? $data['offset'] : null;
             $order = $data && isset($data['order']) ? $data['order'] : [];
-            $dateRange = $data && isset($data['date_ranger']) ? $data['date_ranger'] : [];
-            $results = $this->model->find(array_merge($filter, ["deletado" => "N"]), $limit, $offset, $order, $dateRange);
+            $filter = array_merge($filter, ["deletado" => "N"]);
+
+            if ($this->isAuthenticatedDeliveryDriver()) {
+                $results = $this->model->findForDeliveryDriver($this->getAuthenticatedDriverId(), $filter, $limit, $offset, $order);
+            } else {
+                $results = $this->model->find($filter, $limit, $offset, $order);
+            }
 
             if (isset($data['includes'])) {
                 $this->processIncludes($results, $data['includes']);
@@ -39,13 +128,23 @@ class VendasController extends ControllerBase
 
     public function find($data = [])
     {
-        $filter = $data && isset($data['filter']) ? $data['filter'] : [];
-        $dateRange = $data && isset($data['date_ranger']) ? $data['date_ranger'] : [];
-
         try {
+            $filter = $data && isset($data['filter']) ? $data['filter'] : [];
+            $filter = $this->applyDeliveryDriverListScope($filter);
+            $filterWithDeleted = array_merge($filter, ["deletado" => "N"]);
+            $total = $this->isAuthenticatedDeliveryDriver()
+                ? $this->model->totalCountForDeliveryDriver($this->getAuthenticatedDriverId(), $filterWithDeleted)['total']
+                : $this->model->totalCount($filterWithDeleted)['total'];
+
+            if ($data) {
+                $data['filter'] = $filter;
+            } else {
+                $data = ['filter' => $filter];
+            }
+
             http_response_code(200);
             echo json_encode([
-                "total" => $this->model->totalCount(array_merge($filter, ["deletado" => "N"]), $dateRange)['total'],
+                "total" => $total,
                 "data" => $this->findOnly($data)
             ]);
         } catch (\Exception $e) {
@@ -220,6 +319,8 @@ class VendasController extends ControllerBase
             $currentData = $this->model->current();
 
             if ($currentData) {
+                $this->assertDeliveryDriverCanUpdate($currentData, $data);
+
                 $result = $this->model->update($data);
 
                 foreach ($this->model->relationConfig as $relation) {

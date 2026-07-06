@@ -76,10 +76,32 @@ class UsuariosController extends ControllerBase
         return $this->model->current();
     }
 
+    private function validateMotoristaDaConta($idMotorista, $idConta)
+    {
+        if (!$idMotorista) {
+            return;
+        }
+
+        $motoristasController = new MotoristasController();
+        $motorista = $motoristasController->findOnly([
+            "filter" => [
+                "id" => $idMotorista,
+                "id_conta" => $idConta,
+                "deletado" => "N"
+            ],
+            "limit" => 1
+        ])[0] ?? null;
+
+        if (!$motorista) {
+            throw new \Exception("Motorista nÃ£o encontrado para esta conta.");
+        }
+    }
+
     public function create($data)
     {
         try {
             $data['id_conta'] = $_REQUEST['id_conta'];
+            $this->validateMotoristaDaConta($data['id_motorista'] ?? null, $data['id_conta']);
             $this->validateRequiredFields($this->model, $data);
             $result = $this->model->insert($data);
 
@@ -115,6 +137,7 @@ class UsuariosController extends ControllerBase
             }
 
             if ($currentData) {
+                $this->validateMotoristaDaConta($data['id_motorista'] ?? null, $currentData['id_conta']);
 
                 if (isset($data['senha']) && $data['senha']) {
                     $hash = password_hash($data['senha'], PASSWORD_BCRYPT);
@@ -224,6 +247,7 @@ class UsuariosController extends ControllerBase
                     "data" => [
                         "id" => $user['id'],
                         "id_conta" => $user['id_conta'],
+                        "id_motorista" => $user['id_motorista'] ?? null,
                         "perfil" => $user['perfil'],
                         "tipo" => $user['tipo'],
                         "conta_tipo" => $user['contas_usuarios'][0]['tipo'],
@@ -236,6 +260,7 @@ class UsuariosController extends ControllerBase
                 echo json_encode([
                     "id" => $user['id'],
                     "id_conta" => $user['id_conta'],
+                    "id_motorista" => $user['id_motorista'] ?? null,
                     "nome" => $user['nome'],
                     "tipo" => $user['tipo'],
                     "perfil" => $user['perfil'],

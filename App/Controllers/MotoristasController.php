@@ -15,6 +15,58 @@ class MotoristasController extends ControllerBase
         $this->model = new MotoristasModel($id ? $id : null);
     }
 
+    private function contaUsaModoEntrega()
+    {
+        $contaId = $_REQUEST['id_conta'] ?? null;
+
+        if (!$contaId) {
+            return false;
+        }
+
+        $contaController = new ContasUsuariosController($contaId);
+        $conta = $contaController->findUnique();
+
+        return ($conta['usa_modo_entrega'] ?? 'N') === 'S';
+    }
+
+    private function bloquearSemModoEntrega()
+    {
+        if (!$this->contaUsaModoEntrega()) {
+            http_response_code(403);
+            echo json_encode(["message" => "Modo de entrega nÃ£o habilitado para esta conta."]);
+            return true;
+        }
+
+        return false;
+    }
+
+    private function responderListaVazia()
+    {
+        http_response_code(200);
+        echo json_encode([]);
+        return true;
+    }
+
+    private function responderPaginacaoVazia()
+    {
+        http_response_code(200);
+        echo json_encode([
+            "total" => 0,
+            "data" => []
+        ]);
+        return true;
+    }
+
+    public function search($data)
+    {
+        if (!$this->contaUsaModoEntrega()) {
+            $this->responderListaVazia();
+            return;
+        }
+
+        parent::search($data);
+    }
+
     public function findOnly($data = [])
     {
         try {
@@ -37,6 +89,11 @@ class MotoristasController extends ControllerBase
 
     public function find($data = [])
     {
+        if (!$this->contaUsaModoEntrega()) {
+            $this->responderPaginacaoVazia();
+            return;
+        }
+
         $filter = $data && isset($data['filter']) ? $data['filter'] : [];
         $dateRange = $data && isset($data['date_ranger']) ? $data['date_ranger'] : [];
 
@@ -72,6 +129,10 @@ class MotoristasController extends ControllerBase
     public function create($data)
     {
         try {
+            if ($this->bloquearSemModoEntrega()) {
+                return;
+            }
+
             $data['id_conta'] = $_REQUEST['id_conta'];
             $result = $this->createOnly($data);
 
@@ -86,6 +147,10 @@ class MotoristasController extends ControllerBase
     public function update($data)
     {
         try {
+            if ($this->bloquearSemModoEntrega()) {
+                return;
+            }
+
             $currentData = $this->model->current();
 
             if ($currentData) {
@@ -180,6 +245,11 @@ class MotoristasController extends ControllerBase
     public function searchDataTable($data)
     {
         try {
+            if (!$this->contaUsaModoEntrega()) {
+                $this->responderPaginacaoVazia();
+                return;
+            }
+
             http_response_code(200);
             echo json_encode($this->model->dataTable($data, [$this->model, 'formatData']));
         } catch (\Exception $e) {

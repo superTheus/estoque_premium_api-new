@@ -126,6 +126,39 @@ class VendasModel extends BaseModel
         }
     }
 
+    public function totalCountForDeliveryDriver($driverId, $filters = [])
+    {
+        $sql = "SELECT COUNT(id) as total FROM {$this->table}";
+        $conditions = [];
+        $bindings = [];
+
+        if (!empty($filters)) {
+            $this->buildFilterConditions($filters, $conditions, $bindings);
+        }
+
+        $conditions[] = "(id_motorista = :delivery_driver_id OR id_motorista IS NULL OR id_motorista = 0)";
+
+        if (!empty($conditions)) {
+            $sql .= " WHERE " . implode(" AND ", $conditions);
+        }
+
+        try {
+            $stmt = $this->conn->prepare($sql);
+
+            foreach ($bindings as $param => $value) {
+                $type = is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR;
+                $stmt->bindValue($param, $value, $type);
+            }
+
+            $stmt->bindValue(':delivery_driver_id', (int) $driverId, PDO::PARAM_INT);
+            $stmt->execute();
+
+            return $stmt->fetch(\PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            echo $e->getMessage();
+        }
+    }
+
     public function find($filters = [], $limit = null, $offset = null, $order = [])
     {
         try {
@@ -173,6 +206,62 @@ class VendasModel extends BaseModel
             }
 
             $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            throw new PDOException($e->getMessage());
+        }
+    }
+
+    public function findForDeliveryDriver($driverId, $filters = [], $limit = null, $offset = null, $order = [])
+    {
+        try {
+            $sql = "SELECT * FROM {$this->table}";
+            $conditions = [];
+            $bindings = [];
+
+            if (!empty($filters)) {
+                $this->buildFilterConditions($filters, $conditions, $bindings);
+            }
+
+            $conditions[] = "(id_motorista = :delivery_driver_id OR id_motorista IS NULL OR id_motorista = 0)";
+
+            if (!empty($conditions)) {
+                $sql .= " WHERE " . implode(" AND ", $conditions);
+            }
+
+            if (!empty($order)) {
+                $orderClauses = [];
+                $direction = strtoupper($order['direction'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+
+                foreach ($order['cols'] ?? [] as $column) {
+                    $orderClauses[] = "$column $direction";
+                }
+
+                if (!empty($orderClauses)) {
+                    $sql .= " ORDER BY " . implode(", ", $orderClauses);
+                }
+            }
+
+            if ($limit !== null) {
+                $sql .= " LIMIT :limit";
+                $bindings[':limit'] = (int) $limit;
+            }
+
+            if ($offset !== null) {
+                $sql .= " OFFSET :offset";
+                $bindings[':offset'] = (int) $offset;
+            }
+
+            $stmt = $this->conn->prepare($sql);
+
+            foreach ($bindings as $param => $value) {
+                $type = is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR;
+                $stmt->bindValue($param, $value, $type);
+            }
+
+            $stmt->bindValue(':delivery_driver_id', (int) $driverId, PDO::PARAM_INT);
+            $stmt->execute();
+
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             throw new PDOException($e->getMessage());

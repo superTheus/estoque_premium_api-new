@@ -418,6 +418,36 @@ class ContasUsuariosController extends ControllerBase
     }
   }
 
+  public function atualizarPreferencias($data)
+  {
+    try {
+      $contaId = $_REQUEST['id_conta'] ?? null;
+
+      if (!$contaId) {
+        throw new \Exception("Conta nÃ£o identificada.");
+      }
+
+      $preferencias = [];
+
+      if (isset($data['usa_modo_entrega'])) {
+        $preferencias['usa_modo_entrega'] = $data['usa_modo_entrega'] === 'S' ? 'S' : 'N';
+      }
+
+      if (empty($preferencias)) {
+        throw new \Exception("Nenhuma preferÃªncia informada.");
+      }
+
+      $contaController = new ContasUsuariosController($contaId);
+      $result = $contaController->model->update($preferencias);
+
+      http_response_code(200);
+      echo json_encode($result);
+    } catch (\Exception $e) {
+      http_response_code(500);
+      echo json_encode(["message" => $e->getMessage()]);
+    }
+  }
+
   public function delete()
   {
     try {
