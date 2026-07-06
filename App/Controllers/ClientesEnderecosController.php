@@ -57,6 +57,33 @@ class ClientesEnderecosController extends ControllerBase
         return $this->model->current();
     }
 
+    private function isPrincipal($value)
+    {
+        return $value === 'S' || $value === true || $value === 1 || $value === '1';
+    }
+
+    private function setOtherAddressesAsNotPrincipal($idCliente, $ignoreId = null)
+    {
+        if (!$idCliente) {
+            return;
+        }
+
+        $addresses = $this->model->find([
+            "id_cliente" => $idCliente,
+            "principal" => "S",
+            "deletado" => "N"
+        ]);
+
+        foreach ($addresses as $address) {
+            if ($ignoreId && (int) $address['id'] === (int) $ignoreId) {
+                continue;
+            }
+
+            $model = new ClientesEnderecosModel($address['id']);
+            $model->update(["principal" => "N"]);
+        }
+    }
+
     public function createOnly($data)
     {
         try {
@@ -73,6 +100,12 @@ class ClientesEnderecosController extends ControllerBase
     {
         try {
             $data['id_conta'] = $_REQUEST['id_conta'];
+
+            if ($this->isPrincipal($data['principal'] ?? null)) {
+                $this->setOtherAddressesAsNotPrincipal($data['id_cliente'] ?? null);
+                $data['principal'] = 'S';
+            }
+
             $result = $this->createOnly($data);
 
             http_response_code(200);
@@ -89,6 +122,10 @@ class ClientesEnderecosController extends ControllerBase
             $currentData = $this->model->current();
 
             if ($currentData) {
+                if ($this->isPrincipal($data['principal'] ?? null)) {
+                    $this->setOtherAddressesAsNotPrincipal($data['id_cliente'] ?? $currentData['id_cliente'] ?? null, $currentData['id']);
+                    $data['principal'] = 'S';
+                }
 
                 $result = $this->model->update($data);
 
@@ -162,7 +199,21 @@ class ClientesEnderecosController extends ControllerBase
     public function delete(int $id)
     {
         try {
-            $result = $this->model->delete($id);
+            $currentData = $this->model->current();
+
+            if (!$currentData) {
+                http_response_code(404);
+                echo json_encode(["message" => "EndereÃ§o nÃ£o encontrado"]);
+                return;
+            }
+
+            if ($this->isPrincipal($currentData['principal'] ?? null)) {
+                http_response_code(400);
+                echo json_encode(["message" => "NÃ£o Ã© permitido excluir o endereÃ§o principal"]);
+                return;
+            }
+
+            $result = $this->model->delete();
 
             http_response_code(200);
             echo json_encode($result);

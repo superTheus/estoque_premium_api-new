@@ -50,4 +50,27 @@ class ReportsController
             echo json_encode(["message" => $e->getMessage()]);
         }
     }
+
+    public function getComissoesReports($data = [])
+    {
+        if (!isset($data['idConta']) || !isset($data['startDate']) || !isset($data['endDate']) || !isset($data['tipo'])) {
+            http_response_code(400);
+            echo json_encode(["message" => "ParÃ¢metros insuficientes."]);
+            return;
+        }
+
+        if (!in_array($data['tipo'], ['vendedores', 'motoristas'])) {
+            http_response_code(400);
+            echo json_encode(["message" => "Tipo de comissÃ£o invÃ¡lido."]);
+            return;
+        }
+
+        try {
+            http_response_code(200);
+            echo json_encode($this->model->getComissoesReport($data));
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(["message" => $e->getMessage()]);
+        }
+    }
 }

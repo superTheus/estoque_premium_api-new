@@ -101,4 +101,95 @@ class ReportsModel extends Connection
             throw new PDOException("Erro ao buscar relatórios fiscais: " . $e->getMessage());
         }
     }
+
+    public function getComissoesReport($data)
+    {
+        $tipo = $data['tipo'] ?? 'vendedores';
+        $isMotorista = $tipo === 'motoristas';
+        $pessoaTable = $isMotorista ? 'motoristas' : 'vendedores';
+        $pessoaKey = $isMotorista ? 'id_motorista' : 'id_vendedor';
+
+        $baseComissao = "GREATEST(SUM((COALESCE(VP.preco, 0) * COALESCE(VP.quantidade, 0)) - COALESCE(VP.desconto_real, 0)), 0)";
+
+        $sql = "
+            SELECT
+                V.id AS venda_id,
+                V.dthr_registro,
+                V.status,
+                V.id_empresa,
+                E.nome_fantasia AS empresa,
+                P.id AS pessoa_id,
+                P.nome AS pessoa,
+                P.tipo_comissao,
+                COALESCE(P.comissao_percentual, 0) AS comissao_percentual,
+                COALESCE(P.comissao_valor, 0) AS comissao_valor,
+                {$baseComissao} AS base_comissao,
+                CASE
+                    WHEN P.tipo_comissao = 'V' THEN COALESCE(P.comissao_valor, 0)
+                    ELSE ROUND({$baseComissao} * (COALESCE(P.comissao_percentual, 0) / 100), 2)
+                END AS valor_comissao
+            FROM vendas V
+            INNER JOIN venda_produtos VP ON VP.id_venda = V.id
+            INNER JOIN {$pessoaTable} P ON P.id = V.{$pessoaKey}
+            INNER JOIN empresas E ON E.id = V.id_empresa
+            WHERE V.id_conta = :idConta
+                AND V.deletado = 'N'
+                AND DATE(V.dthr_registro) BETWEEN :startDate AND :endDate
+        ";
+
+        if ($isMotorista) {
+            $sql .= " AND V.id_motorista IS NOT NULL AND V.id_motorista > 0";
+        }
+
+        if (!empty($data['empresa']) && intval($data['empresa']) > 0) {
+            $sql .= " AND V.id_empresa = :empresa";
+        }
+
+        if (!empty($data['pessoa']) && intval($data['pessoa']) > 0) {
+            $sql .= " AND P.id = :pessoa";
+        }
+
+        if (!empty($data['status']) && $data['status'] !== 'TD') {
+            $sql .= " AND V.status = :status";
+        }
+
+        $sql .= "
+            GROUP BY
+                V.id,
+                V.dthr_registro,
+                V.status,
+                V.id_empresa,
+                E.nome_fantasia,
+                P.id,
+                P.nome,
+                P.tipo_comissao,
+                P.comissao_percentual,
+                P.comissao_valor
+            ORDER BY P.nome ASC, V.dthr_registro ASC
+        ";
+
+        try {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindParam(':idConta', $data['idConta']);
+            $stmt->bindParam(':startDate', $data['startDate']);
+            $stmt->bindParam(':endDate', $data['endDate']);
+
+            if (!empty($data['empresa']) && intval($data['empresa']) > 0) {
+                $stmt->bindParam(':empresa', $data['empresa']);
+            }
+
+            if (!empty($data['pessoa']) && intval($data['pessoa']) > 0) {
+                $stmt->bindParam(':pessoa', $data['pessoa']);
+            }
+
+            if (!empty($data['status']) && $data['status'] !== 'TD') {
+                $stmt->bindParam(':status', $data['status']);
+            }
+
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            throw new PDOException("Erro ao buscar relatorio de comissoes: " . $e->getMessage());
+        }
+    }
 }
