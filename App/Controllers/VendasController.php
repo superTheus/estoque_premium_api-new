@@ -100,6 +100,15 @@ class VendasController extends ControllerBase
         }
     }
 
+    private function sanitizeOptionalForeignKeys(&$data)
+    {
+        foreach (['id_vendedor'] as $field) {
+            if (array_key_exists($field, $data) && (empty($data[$field]) || (int) $data[$field] <= 0)) {
+                unset($data[$field]);
+            }
+        }
+    }
+
     public function findOnly($data = [])
     {
         try {
@@ -162,6 +171,7 @@ class VendasController extends ControllerBase
     {
         try {
             $data['id_conta'] = $_REQUEST['id_conta'];
+            $this->sanitizeOptionalForeignKeys($data);
             $this->validateRequiredFields($this->model, $data);
             $result = $this->model->insert($data);
 
@@ -239,12 +249,11 @@ class VendasController extends ControllerBase
                 $produtosCreate[] = $produtoCopy;
             }
 
-            $this->create([
+            $createData = [
                 "id_conta" => $vendaData['id_conta'],
                 "id_empresa" => $vendaData['id_empresa'],
                 "id_operacao" => $operacaoData['id'],
                 "id_cliente" => $vendaData['id_cliente'],
-                "id_vendedor" => $vendaData['id_vendedor'],
                 "total" => $vendaData['total'],
                 "total_pago" => $vendaData['total_pago'],
                 "total_desconto" => $vendaData['total_desconto'],
@@ -254,7 +263,13 @@ class VendasController extends ControllerBase
                 "status" => 'AB',
                 "observacao_nota" => $vendaData['observacao_nota'],
                 "venda_produtos" => $produtosCreate,
-            ]);
+            ];
+
+            if (!empty($vendaData['id_vendedor']) && (int) $vendaData['id_vendedor'] > 0) {
+                $createData['id_vendedor'] = $vendaData['id_vendedor'];
+            }
+
+            $this->create($createData);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(["message" => $e->getMessage()]);
@@ -317,6 +332,7 @@ class VendasController extends ControllerBase
     {
         try {
             $currentData = $this->model->current();
+            $this->sanitizeOptionalForeignKeys($data);
 
             if ($currentData) {
                 $this->assertDeliveryDriverCanUpdate($currentData, $data);
