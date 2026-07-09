@@ -97,11 +97,33 @@ class UsuariosController extends ControllerBase
         }
     }
 
+    private function validateVendedorDaConta($idVendedor, $idConta)
+    {
+        if (!$idVendedor) {
+            return;
+        }
+
+        $vendedoresController = new VendedoresController();
+        $vendedor = $vendedoresController->findOnly([
+            "filter" => [
+                "id" => $idVendedor,
+                "id_conta" => $idConta,
+                "deletado" => "N"
+            ],
+            "limit" => 1
+        ])[0] ?? null;
+
+        if (!$vendedor) {
+            throw new \Exception("Vendedor nao encontrado para esta conta.");
+        }
+    }
+
     public function create($data)
     {
         try {
             $data['id_conta'] = $_REQUEST['id_conta'];
             $this->validateMotoristaDaConta($data['id_motorista'] ?? null, $data['id_conta']);
+            $this->validateVendedorDaConta($data['id_vendedor'] ?? null, $data['id_conta']);
             $this->validateRequiredFields($this->model, $data);
             $result = $this->model->insert($data);
 
@@ -138,6 +160,7 @@ class UsuariosController extends ControllerBase
 
             if ($currentData) {
                 $this->validateMotoristaDaConta($data['id_motorista'] ?? null, $currentData['id_conta']);
+                $this->validateVendedorDaConta($data['id_vendedor'] ?? null, $currentData['id_conta']);
 
                 if (isset($data['senha']) && $data['senha']) {
                     $hash = password_hash($data['senha'], PASSWORD_BCRYPT);
@@ -248,6 +271,7 @@ class UsuariosController extends ControllerBase
                         "id" => $user['id'],
                         "id_conta" => $user['id_conta'],
                         "id_motorista" => $user['id_motorista'] ?? null,
+                        "id_vendedor" => $user['id_vendedor'] ?? null,
                         "perfil" => $user['perfil'],
                         "tipo" => $user['tipo'],
                         "conta_tipo" => $user['contas_usuarios'][0]['tipo'],
@@ -261,6 +285,7 @@ class UsuariosController extends ControllerBase
                     "id" => $user['id'],
                     "id_conta" => $user['id_conta'],
                     "id_motorista" => $user['id_motorista'] ?? null,
+                    "id_vendedor" => $user['id_vendedor'] ?? null,
                     "nome" => $user['nome'],
                     "tipo" => $user['tipo'],
                     "perfil" => $user['perfil'],
